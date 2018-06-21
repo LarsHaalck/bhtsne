@@ -1,44 +1,23 @@
-#include <cfloat>
-#include <cmath>
-#include <cstdlib>
-#include <cstdio>
-#include <cstring>
-#include <ctime>
 #include "tsne.h"
+#include <iostream>
+#include <memory>
 
-// Function that runs the Barnes-Hut implementation of t-SNE
-int main() {
-
-    // Define some variables
-	int origN, N, D, no_dims, max_iter, *landmarks;
-	double perc_landmarks;
-	double perplexity, theta, *data;
+int main()
+{
+    auto tsne = std::make_unique<tsne::TSNE>();
+    int no_dims = 2;
+    double perplexity = 5;
+    double theta = 0.5;
     int rand_seed = -1;
-    TSNE* tsne = new TSNE();
-
-    // Read the parameters and the dataset
-	if(tsne->load_data(&data, &origN, &D, &no_dims, &theta, &perplexity, &rand_seed, &max_iter)) {
-
-		// Make dummy landmarks
-        N = origN;
-        int* landmarks = (int*) malloc(N * sizeof(int));
-        if(landmarks == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-        for(int n = 0; n < N; n++) landmarks[n] = n;
-
-		// Now fire up the SNE implementation
-		double* Y = (double*) malloc(N * no_dims * sizeof(double));
-		double* costs = (double*) calloc(N, sizeof(double));
-        if(Y == NULL || costs == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-		tsne->run(data, N, D, Y, no_dims, perplexity, theta, rand_seed, false, max_iter);
-
-		// Save the results
-		tsne->save_data(Y, landmarks, costs, N, no_dims);
-
-        // Clean up the memory
-		free(data); data = NULL;
-		free(Y); Y = NULL;
-		free(costs); costs = NULL;
-		free(landmarks); landmarks = NULL;
+    int max_iter = 1000;
+    int D = 2; // initial dims?
+    int N = 20; // num data points
+    //data is vector of n*d datapoints
+    //y = res?
+    auto data = std::vector<double>(N * D);
+    auto Y = std::vector<double>(N * no_dims);
+    for (int i = 0; i < (int) data.size(); i++) {
+        data[i] = i;
     }
-    delete(tsne);
+    tsne->run(data, N, D, Y, no_dims, perplexity, theta, rand_seed, false, max_iter);
 }

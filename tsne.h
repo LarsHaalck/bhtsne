@@ -30,34 +30,54 @@
  *
  */
 
+#ifndef TSNE_TSNE_H
+#define TSNE_TSNE_H
 
-#ifndef TSNE_H
-#define TSNE_H
-
-
-static inline double sign(double x) { return (x == .0 ? .0 : (x < .0 ? -1.0 : 1.0)); }
-
+#include <vector>
+#include <cstdlib> // for std::exit(1), and rand(
+namespace tsne
+{
+namespace detail
+{
+static inline double sign(double x) { return (x == 0.0 ? 0.0 : (x < 0.0 ? -1.0 : 1.0)); }
+static inline bool abs_compare(double a, double b) { return (std::abs(a) < std::abs(b)); }
+}
 
 class TSNE
 {
 public:
-    void run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
-             bool skip_random_init, int max_iter=1000, int stop_lying_iter=250, int mom_switch_iter=250);
-    bool load_data(double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter);
-    void save_data(double* data, int* landmarks, double* costs, int n, int d);
-    void symmetrizeMatrix(unsigned int** row_P, unsigned int** col_P, double** val_P, int N); // should be static!
-
+    void run(std::vector<double>& X, int N, int D, std::vector<double>& Y, int no_dims,
+        double perplexity, double theta, int rand_seed, bool skip_random_init,
+        int max_iter = 1000, int stop_lying_iter = 250, int mom_switch_iter = 250);
+    //bool load_data(double** data, int* n, int* d, int* no_dims, double* theta,
+    //    double* perplexity, int* rand_seed, int* max_iter);
+    //void save_data(double* data, int* landmarks, double* costs, int n, int d);
+    static void symmetrizeMatrix(std::vector<int>& row_P, std::vector<int>& col_P,
+        std::vector<double>& val_P, int N);
 
 private:
-    void computeGradient(double* P, unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, double* Y, int N, int D, double* dC, double theta);
-    void computeExactGradient(double* P, double* Y, int N, int D, double* dC);
-    double evaluateError(double* P, double* Y, int N, int D);
-    double evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P, double* Y, int N, int D, double theta);
-    void zeroMean(double* X, int N, int D);
-    void computeGaussianPerplexity(double* X, int N, int D, double* P, double perplexity);
-    void computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K);
-    void computeSquaredEuclideanDistance(double* X, int N, int D, double* DD);
+    void computeGradient(const std::vector<double>& P, const std::vector<int>& inp_row_P,
+        const std::vector<int>& inp_col_P, const std::vector<double>& inp_val_P,
+        std::vector<double>& Y, int N, int D, std::vector<double>& dC, double theta);
+    void computeExactGradient(const std::vector<double>& P, const std::vector<double>& Y,
+        int N, int D, std::vector<double>& dC);
+    double evaluateError(const std::vector<double>& P, const std::vector<double>& Y,
+        int N, int D);
+    double evaluateError(const std::vector<int>& row_P, const std::vector<int>& col_P,
+        const std::vector<double>& val_P, const std::vector<double>& Y, int N, int D,
+        double theta);
+    void computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
+        std::vector<double>& P, double perplexity);
+    void computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
+        std::vector<int>& row_P, std::vector<int>& col_P, std::vector<double>& val_P,
+        double perplexity, int K);
+    void computeSquaredEuclideanDistance(const std::vector<double>& X, int N, int D,
+        std::vector<double>& DD);
+    void zeroMean(std::vector<double>& X, int N, int D);
     double randn();
-};
 
-#endif
+
+};
+}
+
+#endif // TSNE_TSNE_H

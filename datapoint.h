@@ -30,69 +30,32 @@
  *
  */
 
-#ifndef TSNE_SPTREE_H
-#define TSNE_SPTREE_H
+/* This code was adopted with minor modifications from Steve Hanov's great tutorial at
+ * http://stevehanov.ca/blog/index.php?id=130 */
 
-#include "cell.h"
+#ifndef TSNE_DATAPOINT_H
+#define TSNE_DATAPOINT_H
 
-#include <cmath>
-#include <memory>
 #include <vector>
 
 namespace tsne
 {
-
-class SPTree
+class DataPoint
 {
 private:
-    // Fixed constants
-    static const int QT_NODE_CAPACITY = 1;
-
-    // A buffer we use when doing force computations
-    std::vector<double> buff;
-
-    // Properties of this node in the tree
-    int dimension;
-    bool is_leaf;
-    int size;
-    int cum_size;
-
-    // Axis-aligned bounding box stored as a center with half-dimensions to represent the
-    // boundaries of this quad tree
-    std::unique_ptr<Cell> boundary;
-
-    // Indices in this space-partitioning tree node, corresponding center-of-mass, and
-    // list of all children
-    std::vector<double> data;
-    std::vector<double> center_of_mass;
-    int index[QT_NODE_CAPACITY];
-
-    // Children
-    std::vector<std::unique_ptr<SPTree>> children;
-    int no_children;
+    int m_D;
+    int m_ind;
+    std::vector<double> m_x;
 
 public:
-    SPTree(int D, const std::vector<double>& inp_data, int N);
-    SPTree(int D, const std::vector<double>& inp_data,
-        const std::vector<double>& inp_corner, const std::vector<double>& inp_width);
-    SPTree(int D, const std::vector<double>& inp_data, int N,
-        const std::vector<double>& inp_corner, const std::vector<double>& inp_width);
+    DataPoint();
+    DataPoint(int D, int ind, const std::vector<double>& x);
 
-    bool insert(int new_index);
-    void subdivide();
-    bool isCorrect();
-    int getDepth();
-    void computeNonEdgeForces(int point_index, double theta, std::vector<double>& neg_f,
-        int neg_offset, double& sum_Q);
-    void computeEdgeForces(const std::vector<int>& row_P, const std::vector<int>& col_P,
-        const std::vector<double>& val_P, int N, std::vector<double>& pos_f);
-    void print();
-
-private:
-    void init(int D, const std::vector<double>& inp_data,
-        const std::vector<double>& inp_corner, const std::vector<double>& inp_width);
-    void fill(int N);
+    int index() const { return m_ind; }
+    int getDim() const { return m_D; }
+    double x(int d) const { return m_x[d]; }
+    std::vector<double> getX() const { return m_x; }
 };
 }
 
-#endif // TSNE_SPTREE_H
+#endif // TSNE_DATAPOINT_H
