@@ -84,10 +84,6 @@ public:
     int getDepth();
     void computeNonEdgeForces(int point_index, double theta, std::vector<double>& neg_f,
         int neg_offset, double& sum_Q);
-    void computeEdgeForces(const std::vector<int>& row_P, const std::vector<int>& col_P,
-        const std::vector<double>& val_P, int N, std::vector<double>& pos_f);
-    void print();
-
 private:
     void init(int D, const std::vector<double>& inp_data,
         const std::vector<double>& inp_corner, const std::vector<double>& inp_width);

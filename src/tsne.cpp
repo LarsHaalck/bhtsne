@@ -138,21 +138,17 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
         // Compute (approximate) gradient
         computeGradient(row_P, col_P, val_P, Y, N, no_dims, dY, theta);
 
-        // Update gains
-        for (int i = 0; i < N * no_dims; i++)
-            gains[i] = (detail::sign(dY[i]) != detail::sign(uY[i]))
-                ? (gains[i] + 0.2) : (gains[i] * 0.8);
-        for (int i = 0; i < N * no_dims; i++)
-        {
-            if (gains[i] < 0.01)
-                gains[i] = 0.01;
-        }
-
+        // Update gains and
         // Perform gradient update (with momentum and gains)
         for (int i = 0; i < N * no_dims; i++)
+        {
+            gains[i] = (detail::sign(dY[i]) != detail::sign(uY[i]))
+                ? (gains[i] + 0.2) : (gains[i] * 0.8);
+            if (gains[i] < 0.01)
+                gains[i] = 0.01;
             uY[i] = momentum * uY[i] - eta * gains[i] * dY[i];
-        for (int i = 0; i < N * no_dims; i++)
             Y[i] = Y[i] + uY[i];
+        }
 
         // Make solution zero-mean
         zeroMean(Y, N, no_dims);
@@ -192,23 +188,54 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
 }
 
 // Compute gradient of the t-SNE cost function (using Barnes-Hut algorithm)
-void TSNE::computeGradient(const std::vector<int>& inp_row_P,
-    const std::vector<int>& inp_col_P, const std::vector<double>& inp_val_P,
+void TSNE::computeGradient(const std::vector<int>& row_P,
+    const std::vector<int>& col_P, const std::vector<double>& val_P,
     std::vector<double>& Y, int N, int D, std::vector<double>& dC, double theta)
 {
     // Construct space-partitioning tree on current map
     auto tree = std::make_unique<SPTree>(D, Y, N);
 
     // Compute all terms required for t-SNE gradient
-    double sum_Q = 0.0;
     auto pos_f = std::vector<double>(N * D);
     auto neg_f = std::vector<double>(N * D);
 
-    tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f);
+    // was tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f); before
+    // data in sptree equals Y here
+    auto local_Q = std::vector<double>(N);
+    #pragma omp parallel for
     for (int n = 0; n < N; n++)
-        tree->computeNonEdgeForces(n, theta, neg_f, n * D, sum_Q);
+    {
+        //computeEdgeForces
+        int ind1 = n * D;
+        for (int i = row_P[n]; i < row_P[n + 1]; i++)
+        {
+            // Compute pairwise distance and Q-value
+            double D = 1.0;
+            int ind2 = col_P[i] * D;
+            for (int d = 0; d < D; d++)
+            {
+                double temp = Y[ind1 + d] - Y[ind2 + d];
+                D += temp * temp;
+            }
+            D = val_P[i] / D;
+
+            // Sum positive force
+            for (int d = 0; d < D; d++)
+                pos_f[ind1 + d] += D * (Y[ind1 + d] - Y[ind2 + d]);
+        }
+
+        double current_Q = 0.0;
+        tree->computeNonEdgeForces(n, theta, neg_f, n * D, current_Q);
+        local_Q[n] = current_Q;
+    }
+
+    double sum_Q = 0.0;
+    #pragma omp parallel for reduction(+:sum_Q)
+    for (int n = 0; n < N; n++)
+        sum_Q += local_Q[n];
 
     // Compute final t-SNE gradient
+    #pragma omp parallel for
     for (int i = 0; i < N * D; i++)
         dC[i] = pos_f[i] - (neg_f[i] / sum_Q);
 }
@@ -263,7 +290,6 @@ void TSNE::computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
     col_P = std::vector<int>(N * K);
     val_P = std::vector<double>(N * K);
 
-    auto cur_P = std::vector<double>(N - 1);
 
     row_P[0] = 0;
     for (int n = 0; n < N; n++)
@@ -279,16 +305,13 @@ void TSNE::computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
 
     // Loop over all points to find nearest neighbors
     std::cout << "Building tree..." << std::endl;
-    std::vector<DataPoint> indices;
-    std::vector<double> distances;
+    #pragma omp parallel for
     for (int n = 0; n < N; n++)
     {
-        if (n % 10000 == 0)
-            std::cout << " - point " << n << " of " << N << std::endl;
-
         // Find nearest neighbors
-        indices.clear();
-        distances.clear();
+        auto cur_P = std::vector<double>(K);
+        std::vector<DataPoint> indices;
+        std::vector<double> distances;
         tree->search(obj_X[n], K + 1, indices, distances);
 
         // Initialize some variables for binary search
@@ -305,13 +328,13 @@ void TSNE::computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
         {
             // Compute Gaussian kernel row
             for (int m = 0; m < K; m++)
-                cur_P[m] = exp(-beta * distances[m + 1] * distances[m + 1]);
+                cur_P[m] = std::exp(-beta * distances[m + 1] * distances[m + 1]);
 
             // Compute entropy of current row
             sum_P = std::numeric_limits<double>::min();
             for (int m = 0; m < K; m++)
                 sum_P += cur_P[m];
-            double H = .0;
+            double H = 0.0;
             for (int m = 0; m < K; m++)
                 H += beta * (distances[m + 1] * distances[m + 1] * cur_P[m]);
             H = (H / sum_P) + std::log(sum_P);
@@ -319,9 +342,7 @@ void TSNE::computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
             // Evaluate whether the entropy is within the tolerance level
             double Hdiff = H - std::log(perplexity);
             if (Hdiff < tol && -Hdiff < tol)
-            {
                 found = true;
-            }
             else
             {
                 if (Hdiff > 0)
