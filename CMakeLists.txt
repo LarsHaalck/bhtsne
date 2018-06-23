@@ -26,3 +26,6 @@ add_library(tsne MODULE ${SOURCES})
 target_include_directories(tsne PRIVATE ${INCLUDE_DIR})
 set_property(TARGET tsne PROPERTY POSITION_INDEPENDENT_CODE ON)
 
+add_executable(tsne_main ${CMAKE_SOURCE_DIR}/src/tsne_main.cpp ${SOURCES})
+target_include_directories(tsne_main PUBLIC ${INCLUDE_DIR})
+

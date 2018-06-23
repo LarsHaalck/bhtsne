@@ -73,8 +73,6 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
     std::cout << "Using no_dims = " << no_dims << ", perplexity = " << perplexity
         << ", and theta = " << theta << std::endl;
 
-    bool exact = (theta == 0.0);
-
     // time execution time
     std::chrono::time_point<std::chrono::system_clock> start_time, end_time;
 
@@ -99,65 +97,26 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
     max_X = std::abs(max_X);
     for(int i = 0; i < N * D; i++) X[i] /= max_X;
 
-    // Compute input similarities for exact t-SNE
-    auto P = std::vector<double>();
+    // Compute input similarities for approximate t-SNE
     auto row_P = std::vector<int>();
     auto col_P = row_P;
-    auto val_P = P;
-    if (exact)
-    {
-        // Compute similarities
-        std::cout << "Exact?" << std::endl;
-        P = std::vector<double>(N * N);
-        computeGaussianPerplexity(X, N, D, P, perplexity);
+    auto val_P = std::vector<double>();
+    // Compute asymmetric pairwise input similarities
+    computeGaussianPerplexity(
+        X, N, D, row_P, col_P, val_P, perplexity, static_cast<int>(3 * perplexity));
 
-        // Symmetrize input similarities
-        std::cout << "Symmetrizing..." << std::endl;
-        int nN = 0;
-        for (int n = 0; n < N; n++)
-        {
-            int mN = (n + 1) * N;
-            for (int m = n + 1; m < N; m++)
-            {
-                P[nN + m] += P[mN + n];
-                P[mN + n] = P[nN + m];
-                mN += N;
-            }
-            nN += N;
-        }
-        double sum_P = std::accumulate(std::begin(P), std::end(P), 0.0);
-        for (int i = 0; i < N * N; i++)
-            P[i] /= sum_P;
-    }
+    // Symmetrize input similarities
+    symmetrizeMatrix(row_P, col_P, val_P, N);
 
-    // Compute input similarities for approximate t-SNE
-    else
-    {
-        // Compute asymmetric pairwise input similarities
-        computeGaussianPerplexity(
-            X, N, D, row_P, col_P, val_P, perplexity, static_cast<int>(3 * perplexity));
-
-        // Symmetrize input similarities
-        symmetrizeMatrix(row_P, col_P, val_P, N);
-
-        double sum_P = std::accumulate(std::begin(val_P), std::begin(val_P) + row_P[N],
-            0.0);
-        for (int i = 0; i < row_P[N]; i++)
-            val_P[i] /= sum_P;
-    }
+    double sum_P = std::accumulate(std::begin(val_P), std::begin(val_P) + row_P[N],
+        0.0);
+    for (int i = 0; i < row_P[N]; i++)
+        val_P[i] /= sum_P;
     end_time = std::chrono::system_clock::now();
 
     // Lie about the P-values
-    if (exact)
-    {
-        for (int i = 0; i < N * N; i++)
-            P[i] *= 12.0;
-    }
-    else
-    {
-        for (int i = 0; i < row_P[N]; i++)
-            val_P[i] /= 12.0;
-    }
+    for (int i = 0; i < row_P[N]; i++)
+        val_P[i] *= 12.0;
 
     // Initialize solution (randomly)
     if (skip_random_init != true)
@@ -167,28 +126,17 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
     }
 
     double elapsed_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() / 1000.0;
-    if (exact)
-    {
-        std::cout << "Input similarities computed in " << elapsed_seconds
-            << " seconds!. Learning embedding..." << std::endl;
-    }
-    else
-    {
-        double sparsity = static_cast<double>(row_P[N]) / (N * N);
-        std::cout << "Input similarities computed in " << elapsed_seconds
-            << " seconds (sparsity = " << sparsity << ")!. Learning embedding..."
-            << std::endl;
-    }
+    double sparsity = static_cast<double>(row_P[N]) / (N * N);
+    std::cout << "Input similarities computed in " << elapsed_seconds
+        << " seconds (sparsity = " << sparsity << ")!. Learning embedding..."
+        << std::endl;
     start_time = std::chrono::system_clock::now();
 
     // Perform main training loop
     for (int iter = 0; iter < max_iter; iter++)
     {
         // Compute (approximate) gradient
-        if (exact)
-            computeExactGradient(P, Y, N, no_dims, dY);
-        else
-            computeGradient(P, row_P, col_P, val_P, Y, N, no_dims, dY, theta);
+        computeGradient(row_P, col_P, val_P, Y, N, no_dims, dY, theta);
 
         // Update gains
         for (int i = 0; i < N * no_dims; i++)
@@ -212,16 +160,8 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
         // Stop lying about the P-values after a while, and switch momentum
         if (iter == stop_lying_iter)
         {
-            if (exact)
-            {
-                for (int i = 0; i < N * N; i++)
-                    P[i] /= 12.0;
-            }
-            else
-            {
-                for (int i = 0; i < row_P[N]; i++)
-                    val_P[i] /= 12.0;
-            }
+            for (int i = 0; i < row_P[N]; i++)
+                val_P[i] /= 12.0;
         }
         if (iter == mom_switch_iter)
             momentum = final_momentum;
@@ -231,11 +171,7 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
         {
             end_time = std::chrono::system_clock::now();
             double C = 0.0;
-            if (exact)
-                C = evaluateError(P, Y, N, no_dims);
-            else
-                C = evaluateError(row_P, col_P, val_P, Y, N, no_dims,
-                    theta); // doing approximate computation here!
+            C = evaluateError(row_P, col_P, val_P, Y, N, no_dims, theta);
             if (iter == 0)
                 std::cout << "Iteration: " << iter << ", error is " << C << std::endl;
             else
@@ -256,10 +192,9 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
 }
 
 // Compute gradient of the t-SNE cost function (using Barnes-Hut algorithm)
-void TSNE::computeGradient(const std::vector<double>& P,
-    const std::vector<int>& inp_row_P, const std::vector<int>& inp_col_P,
-    const std::vector<double>& inp_val_P, std::vector<double>& Y, int N, int D,
-    std::vector<double>& dC, double theta)
+void TSNE::computeGradient(const std::vector<int>& inp_row_P,
+    const std::vector<int>& inp_col_P, const std::vector<double>& inp_val_P,
+    std::vector<double>& Y, int N, int D, std::vector<double>& dC, double theta)
 {
     // Construct space-partitioning tree on current map
     auto tree = std::make_unique<SPTree>(D, Y, N);
@@ -276,99 +211,6 @@ void TSNE::computeGradient(const std::vector<double>& P,
     // Compute final t-SNE gradient
     for (int i = 0; i < N * D; i++)
         dC[i] = pos_f[i] - (neg_f[i] / sum_Q);
-}
-
-// Compute gradient of the t-SNE cost function (exact)
-void TSNE::computeExactGradient(const std::vector<double>& P,
-    const std::vector<double>& Y, int N, int D, std::vector<double>& dC)
-{
-    // Make sure the current gradient contains zeros
-    for (int i = 0; i < N * D; i++)
-        dC[i] = 0.0;
-
-    // Compute the squared Euclidean distance matrix
-    auto DD = std::vector<double>(N * N);
-    computeSquaredEuclideanDistance(Y, N, D, DD);
-
-    // Compute Q-matrix and normalization sum
-    auto Q = std::vector<double>(N * N);
-
-    double sum_Q = 0.0;
-    int nN = 0;
-    for (int n = 0; n < N; n++)
-    {
-        for (int m = 0; m < N; m++)
-        {
-            if (n != m)
-            {
-                Q[nN + m] = 1 / (1 + DD[nN + m]);
-                sum_Q += Q[nN + m];
-            }
-        }
-        nN += N;
-    }
-
-    // Perform the computation of the gradient
-    nN = 0;
-    int nD = 0;
-    for (int n = 0; n < N; n++)
-    {
-        int mD = 0;
-        for (int m = 0; m < N; m++)
-        {
-            if (n != m)
-            {
-                double mult = (P[nN + m] - (Q[nN + m] / sum_Q)) * Q[nN + m];
-                for (int d = 0; d < D; d++)
-                {
-                    dC[nD + d] += (Y[nD + d] - Y[mD + d]) * mult;
-                }
-            }
-            mD += D;
-        }
-        nN += N;
-        nD += D;
-    }
-}
-
-// Evaluate t-SNE cost function (exactly)
-double TSNE::evaluateError(const std::vector<double>& P,
-    const std::vector<double>& Y, int N, int D)
-{
-    // Compute the squared Euclidean distance matrix
-    auto DD = std::vector<double>(N * N);
-    auto Q = std::vector<double>(N * N);
-    computeSquaredEuclideanDistance(Y, N, D, DD);
-
-    // Compute Q-matrix and normalization sum
-    int nN = 0;
-    double sum_Q = std::numeric_limits<double>::min();
-    for (int n = 0; n < N; n++)
-    {
-        for (int m = 0; m < N; m++)
-        {
-            if (n != m)
-            {
-                Q[nN + m] = 1 / (1 + DD[nN + m]);
-                sum_Q += Q[nN + m];
-            }
-            else
-                Q[nN + m] = std::numeric_limits<double>::min();
-        }
-        nN += N;
-    }
-    for (int i = 0; i < N * N; i++)
-        Q[i] /= sum_Q;
-
-    // Sum t-SNE error
-    double C = .0;
-    for (int n = 0; n < N * N; n++)
-    {
-        float min = std::numeric_limits<float>::min();
-        C += P[n] * std::log((P[n] + min) / (Q[n] + min));
-    }
-
-    return C;
 }
 
 // Evaluate t-SNE cost function (approximately)
@@ -408,86 +250,7 @@ double TSNE::evaluateError(const std::vector<int>& row_P, const std::vector<int>
     return C;
 }
 
-// Compute input similarities with a fixed perplexity
-void TSNE::computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
-    std::vector<double>& P, double perplexity)
-{
-    // Compute the squared Euclidean distance matrix
-    auto DD = std::vector<double>(N * N);
-    computeSquaredEuclideanDistance(X, N, D, DD);
-
-    // Compute the Gaussian kernel row by row
-    int nN = 0;
-    for (int n = 0; n < N; n++)
-    {
-
-        // Initialize some variables
-        bool found = false;
-        double beta = 1.0;
-        double min_beta = -std::numeric_limits<double>::max();
-        double max_beta = std::numeric_limits<double>::max();
-        double tol = 1e-5;
-        double sum_P;
-
-        // Iterate until we found a good perplexity
-        int iter = 0;
-        while (!found && iter < 200)
-        {
-
-            // Compute Gaussian kernel row
-            for (int m = 0; m < N; m++)
-                P[nN + m] = std::exp(-beta * DD[nN + m]);
-            P[nN + n] = std::numeric_limits<double>::min();
-
-            // Compute entropy of current row
-            sum_P = std::numeric_limits<double>::min();
-            for (int m = 0; m < N; m++)
-                sum_P += P[nN + m];
-            double H = 0.0;
-            for (int m = 0; m < N; m++)
-                H += beta * (DD[nN + m] * P[nN + m]);
-            H = (H / sum_P) + std::log(sum_P);
-
-            // Evaluate whether the entropy is within the tolerance level
-            double Hdiff = H - std::log(perplexity);
-            if (Hdiff < tol && -Hdiff < tol)
-            {
-                found = true;
-            }
-            else
-            {
-                if (Hdiff > 0)
-                {
-                    min_beta = beta;
-                    if (max_beta == std::numeric_limits<double>::max()
-                        || max_beta == -std::numeric_limits<double>::max())
-                        beta *= 2.0;
-                    else
-                        beta = (beta + max_beta) / 2.0;
-                }
-                else
-                {
-                    max_beta = beta;
-                    if (min_beta == -std::numeric_limits<double>::max()
-                        || min_beta == std::numeric_limits<double>::max())
-                        beta /= 2.0;
-                    else
-                        beta = (beta + min_beta) / 2.0;
-                }
-            }
-            // Update iteration counter
-            iter++;
-        }
-
-        // Row normalize P
-        for (int m = 0; m < N; m++)
-            P[nN + m] /= sum_P;
-        nN += N;
-    }
-}
-
-// Compute input similarities with a fixed perplexity using ball trees (this function
-// allocates memory another function should free)
+// Compute input similarities with a fixed perplexity using ball trees
 void TSNE::computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
     std::vector<int>& row_P, std::vector<int>& col_P, std::vector<double>& val_P,
     double perplexity, int K)

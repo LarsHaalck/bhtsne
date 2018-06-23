@@ -54,18 +54,12 @@ public:
         std::vector<double>& val_P, int N);
 
 private:
-    static void computeGradient(const std::vector<double>& P, const std::vector<int>& inp_row_P,
+    static void computeGradient(const std::vector<int>& inp_row_P,
         const std::vector<int>& inp_col_P, const std::vector<double>& inp_val_P,
         std::vector<double>& Y, int N, int D, std::vector<double>& dC, double theta);
-    static void computeExactGradient(const std::vector<double>& P, const std::vector<double>& Y,
-        int N, int D, std::vector<double>& dC);
-    static double evaluateError(const std::vector<double>& P, const std::vector<double>& Y,
-        int N, int D);
     static double evaluateError(const std::vector<int>& row_P, const std::vector<int>& col_P,
         const std::vector<double>& val_P, const std::vector<double>& Y, int N, int D,
         double theta);
-    static void computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
-        std::vector<double>& P, double perplexity);
     static void computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
         std::vector<int>& row_P, std::vector<int>& col_P, std::vector<double>& val_P,
         double perplexity, int K);
