@@ -140,6 +140,7 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
 
         // Update gains and
         // Perform gradient update (with momentum and gains)
+        #pragma omp parallel for
         for (int i = 0; i < N * no_dims; i++)
         {
             gains[i] = (detail::sign(dY[i]) != detail::sign(uY[i]))
