@@ -46,35 +46,33 @@ static inline bool abs_compare(double a, double b) { return (std::abs(a) < std::
 class TSNE
 {
 public:
-    void run(std::vector<double> X, int N, int D, std::vector<double>& Y, int no_dims,
-        double perplexity, double theta, int rand_seed, bool skip_random_init,
-        int max_iter = 1000, int stop_lying_iter = 250, int mom_switch_iter = 250);
-    //bool load_data(double** data, int* n, int* d, int* no_dims, double* theta,
-    //    double* perplexity, int* rand_seed, int* max_iter);
-    //void save_data(double* data, int* landmarks, double* costs, int n, int d);
+    static void run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
+        int no_dims, double perplexity, double theta, int rand_seed,
+        bool skip_random_init, int max_iter = 1000, int stop_lying_iter = 250,
+        int mom_switch_iter = 250);
     static void symmetrizeMatrix(std::vector<int>& row_P, std::vector<int>& col_P,
         std::vector<double>& val_P, int N);
 
 private:
-    void computeGradient(const std::vector<double>& P, const std::vector<int>& inp_row_P,
+    static void computeGradient(const std::vector<double>& P, const std::vector<int>& inp_row_P,
         const std::vector<int>& inp_col_P, const std::vector<double>& inp_val_P,
         std::vector<double>& Y, int N, int D, std::vector<double>& dC, double theta);
-    void computeExactGradient(const std::vector<double>& P, const std::vector<double>& Y,
+    static void computeExactGradient(const std::vector<double>& P, const std::vector<double>& Y,
         int N, int D, std::vector<double>& dC);
-    double evaluateError(const std::vector<double>& P, const std::vector<double>& Y,
+    static double evaluateError(const std::vector<double>& P, const std::vector<double>& Y,
         int N, int D);
-    double evaluateError(const std::vector<int>& row_P, const std::vector<int>& col_P,
+    static double evaluateError(const std::vector<int>& row_P, const std::vector<int>& col_P,
         const std::vector<double>& val_P, const std::vector<double>& Y, int N, int D,
         double theta);
-    void computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
+    static void computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
         std::vector<double>& P, double perplexity);
-    void computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
+    static void computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
         std::vector<int>& row_P, std::vector<int>& col_P, std::vector<double>& val_P,
         double perplexity, int K);
-    void computeSquaredEuclideanDistance(const std::vector<double>& X, int N, int D,
+    static void computeSquaredEuclideanDistance(const std::vector<double>& X, int N, int D,
         std::vector<double>& DD);
-    void zeroMean(std::vector<double>& X, int N, int D);
-    double randn();
+    static void zeroMean(std::vector<double>& X, int N, int D);
+    static double randn();
 
 
 };
