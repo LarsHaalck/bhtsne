@@ -163,7 +163,7 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
             momentum = final_momentum;
 
         // Print out progress
-        if (iter > 0 && (iter % 50 == 0 || iter == max_iter - 1))
+        if ((iter % 50 == 0 || iter == max_iter - 1))
         {
             end_time = std::chrono::system_clock::now();
             double C = 0.0;
@@ -270,7 +270,7 @@ double TSNE::evaluateError(const std::vector<int>& row_P, const std::vector<int>
             for (int d = 0; d < D; d++)
                 Q += buff[d] * buff[d];
             Q = (1.0 / (1.0 + Q)) / sum_Q;
-            float min = std::numeric_limits<float>::min();
+            double min = std::numeric_limits<double>::min();
             C += val_P[i] * std::log((val_P[i] + min) / (Q + min));
         }
     }
@@ -289,7 +289,6 @@ void TSNE::computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
     row_P = std::vector<int>(N + 1);
     col_P = std::vector<int>(N * K);
     val_P = std::vector<double>(N * K);
-
 
     row_P[0] = 0;
     for (int n = 0; n < N; n++)
@@ -312,6 +311,7 @@ void TSNE::computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
         auto cur_P = std::vector<double>(K);
         std::vector<DataPoint> indices;
         std::vector<double> distances;
+
         tree->search(obj_X[n], K + 1, indices, distances);
 
         // Initialize some variables for binary search

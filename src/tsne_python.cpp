@@ -14,8 +14,8 @@ void checkArray(PyArrayObject* arr)
 		throw std::runtime_error("Passed array must be contiguous.");
 	if (PyArray_NDIM(arr) != 2) //TODO: change to 2D
 		throw std::runtime_error("Passed array must be 2D.");
-	if (PyArray_TYPE(arr) != NPY_FLOAT64)
-		throw std::runtime_error("Passed array must be of type float64.");
+	if (PyArray_TYPE(arr) != NPY_double64)
+		throw std::runtime_error("Passed array must be of type double64.");
 }
 
 std::vector<npy_intp> getDims(PyArrayObject* arr)
@@ -63,7 +63,7 @@ PyObject* tsne(bp::object obj, int noDims, double perplexity, double theta,
 
 	//call tsne on vec
 
-	PyObject *outArray = PyArray_SimpleNew(2, dims.data(), NPY_FLOAT64);
+	PyObject *outArray = PyArray_SimpleNew(2, dims.data(), NPY_double64);
 	writeResults(outArray, vec, dims);
 
 	return outArray;

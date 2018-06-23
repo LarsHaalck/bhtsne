@@ -60,7 +60,6 @@ public:
 
 private:
     std::vector<DataPoint> m_items;
-    double m_tau;
 
     // Single node of a VP tree
     // (has a point and radius; left children are closer to point than radius)
@@ -116,7 +115,7 @@ private:
 
     // Helper function that searches the tree
     void search(std::shared_ptr<Node> node, const DataPoint& target, int k,
-        std::priority_queue<HeapItem>& heap);
+        std::priority_queue<HeapItem>& heap, double& tau);
     static double eucl_dist(const DataPoint& t1, const DataPoint& t2);
 };
 }
