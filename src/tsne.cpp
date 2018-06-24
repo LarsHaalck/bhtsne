@@ -121,6 +121,7 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
     // Initialize solution (randomly)
     if (skip_random_init != true)
     {
+        #pragma omp parallel for
         for (int i = 0; i < N * no_dims; i++)
             Y[i] = randn() * 0.0001;
     }
@@ -168,6 +169,7 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
         {
             end_time = std::chrono::system_clock::now();
             double C = 0.0;
+            std::cout << "error" << std::endl;
             C = evaluateError(row_P, col_P, val_P, Y, N, no_dims, theta);
             if (iter == 0)
                 std::cout << "Iteration: " << iter << ", error is " << C << std::endl;
@@ -211,18 +213,18 @@ void TSNE::computeGradient(const std::vector<int>& row_P,
         for (int i = row_P[n]; i < row_P[n + 1]; i++)
         {
             // Compute pairwise distance and Q-value
-            double D = 1.0;
+            double dist = 1.0;
             int ind2 = col_P[i] * D;
             for (int d = 0; d < D; d++)
             {
                 double temp = Y[ind1 + d] - Y[ind2 + d];
-                D += temp * temp;
+                dist += temp * temp;
             }
-            D = val_P[i] / D;
+            dist = val_P[i] / dist;
 
             // Sum positive force
             for (int d = 0; d < D; d++)
-                pos_f[ind1 + d] += D * (Y[ind1 + d] - Y[ind2 + d]);
+                pos_f[ind1 + d] += dist * (Y[ind1 + d] - Y[ind2 + d]);
         }
 
         double current_Q = 0.0;
@@ -231,7 +233,7 @@ void TSNE::computeGradient(const std::vector<int>& row_P,
     }
 
     double sum_Q = 0.0;
-    #pragma omp parallel for reduction(+:sum_Q)
+    //#pragma omp parallel for reduction(+:sum_Q)
     for (int n = 0; n < N; n++)
         sum_Q += local_Q[n];
 
@@ -254,24 +256,23 @@ double TSNE::evaluateError(const std::vector<int>& row_P, const std::vector<int>
         tree->computeNonEdgeForces(n, theta, buff, 0, sum_Q);
 
     // Loop over all edges to compute t-SNE error
-    int ind1, ind2;
     double C = 0.0;
-    double Q;
+    #pragma omp parallel for reduction(+:C)
     for (int n = 0; n < N; n++)
     {
-        ind1 = n * D;
+        int ind1 = n * D;
         for (int i = row_P[n]; i < row_P[n + 1]; i++)
         {
-            Q = 0.0;
-            ind2 = col_P[i] * D;
+            double Q = 0.0;
+            int ind2 = col_P[i] * D;
             for (int d = 0; d < D; d++)
-                buff[d] = Y[ind1 + d];
-            for (int d = 0; d < D; d++)
-                buff[d] -= Y[ind2 + d];
-            for (int d = 0; d < D; d++)
-                Q += buff[d] * buff[d];
+            {
+                double temp = Y[ind1 + d] - Y[ind2 + d];
+                Q += temp * temp;
+            }
             Q = (1.0 / (1.0 + Q)) / sum_Q;
-            double min = std::numeric_limits<double>::min();
+
+            double min = std::numeric_limits<float>::min();
             C += val_P[i] * std::log((val_P[i] + min) / (Q + min));
         }
     }

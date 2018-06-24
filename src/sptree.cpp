@@ -101,7 +101,6 @@ void SPTree::init(int D, const std::vector<double>& inp_data,
     boundary = std::make_unique<Cell>(dimension, inp_corner, inp_width);
     children = std::vector<std::unique_ptr<SPTree>>(no_children);
     center_of_mass = std::vector<double>(D, 0.0);
-    buff = std::vector<double>(D);
 }
 
 // Insert a point into the SPTree
@@ -251,9 +250,10 @@ void SPTree::computeNonEdgeForces(
     double D = 0.0;
     int ind = point_index * dimension;
     for (int d = 0; d < dimension; d++)
-        buff[d] = data[ind + d] - center_of_mass[d];
-    for (int d = 0; d < dimension; d++)
-        D += buff[d] * buff[d];
+    {
+        double temp = data[ind + d] - center_of_mass[d];
+        D += temp * temp;
+    }
 
     // Check whether we can use this node as a "summary"
     double max_width = 0.0;
@@ -272,7 +272,7 @@ void SPTree::computeNonEdgeForces(
         sum_Q += mult;
         mult *= D;
         for (int d = 0; d < dimension; d++)
-            neg_f[d + neg_offset] += mult * buff[d];
+            neg_f[d + neg_offset] += mult * (data[ind + d] - center_of_mass[d]);
     }
     else
     {

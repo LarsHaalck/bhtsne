@@ -48,9 +48,6 @@ private:
     // Fixed constants
     static const int QT_NODE_CAPACITY = 1;
 
-    // A buffer we use when doing force computations
-    std::vector<double> buff;
-
     // Properties of this node in the tree
     int dimension;
     bool is_leaf;
