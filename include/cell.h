@@ -35,6 +35,7 @@
 #define TSNE_CELL_H
 
 #include <vector>
+#include <memory>
 
 namespace tsne
 {
@@ -42,19 +43,19 @@ class Cell
 {
 private:
     int m_dimension;
-    std::vector<double> m_corner;
-    std::vector<double> m_width;
+    std::shared_ptr<std::vector<double>> m_corner;
+    std::shared_ptr<std::vector<double>> m_width;
 
 public:
     Cell(int inp_dimension);
-    Cell(int inp_dimension, const std::vector<double>& inp_corner,
-        const std::vector<double>& inp_width);
+    Cell(int inp_dimension, std::shared_ptr<std::vector<double>> inp_corner,
+        std::shared_ptr<std::vector<double>> inp_width);
 
-    double getCorner(int d) { return this->m_corner[d]; }
-    double getWidth(int d) { return this->m_width[d]; }
-    void setCorner(int d, double val) { this->m_corner[d] = val; }
-    void setWidth(int d, double val) { this->m_width[d] = val; }
-    bool containsPoint(const std::vector<double>& point, int offset = 0);
+    double getCorner(int d) { return (*m_corner)[d]; }
+    double getWidth(int d) { return (*m_width)[d]; }
+    void setCorner(int d, double val) { (*m_corner)[d] = val; }
+    void setWidth(int d, double val) { (*m_width)[d] = val; }
+    bool containsPoint(std::shared_ptr<std::vector<double>> point, int offset = 0);
 };
 }
 

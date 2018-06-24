@@ -36,13 +36,13 @@ namespace tsne
 {
 Cell::Cell(int inp_dimension)
     : m_dimension(inp_dimension)
-    , m_corner(inp_dimension)
-    , m_width(inp_dimension)
+    , m_corner()
+    , m_width()
 {
 }
 
-Cell::Cell(int inp_dimension, const std::vector<double>& inp_corner,
-    const std::vector<double>& inp_width)
+Cell::Cell(int inp_dimension, std::shared_ptr<std::vector<double>> inp_corner,
+    std::shared_ptr<std::vector<double>> inp_width)
     : m_dimension(inp_dimension)
     , m_corner(inp_corner)
     , m_width(inp_width)
@@ -50,13 +50,13 @@ Cell::Cell(int inp_dimension, const std::vector<double>& inp_corner,
 }
 
 // Checks whether a point lies in a cell
-bool Cell::containsPoint(const std::vector<double>& point, int offset)
+bool Cell::containsPoint(std::shared_ptr<std::vector<double>> point, int offset)
 {
     for (int d = 0; d < m_dimension; d++)
     {
-        if (m_corner[d] - m_width[d] > point[d + offset])
+        if ((*m_corner)[d] - (*m_width)[d] > (*point)[d + offset])
             return false;
-        if (m_corner[d] + m_width[d] < point[d + offset])
+        if ((*m_corner)[d] + (*m_width)[d] < (*point)[d + offset])
             return false;
     }
     return true;

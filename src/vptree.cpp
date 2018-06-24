@@ -41,7 +41,7 @@ namespace tsne
 // Function to create a new VpTree from data
 void VpTree::create(const std::vector<DataPoint>& items)
 {
-    m_items = items;
+    m_items = items; // make copy, because this object modifies by swapping in items
     m_root = buildFromPoints(0, items.size());
 }
 
@@ -166,12 +166,12 @@ void VpTree::search(std::shared_ptr<Node> node, const DataPoint& target, int k,
 double VpTree::eucl_dist(const DataPoint& t1, const DataPoint& t2)
 {
     double dd = 0.0;
-    const auto x1 = t1.getX();
-    const auto x2 = t2.getX();
+    auto it1 = t1.getIt();
+    auto it2 = t2.getIt();
     double diff;
     for (int d = 0; d < t1.getDim(); d++)
     {
-        diff = (x1[d] - x2[d]);
+        diff = *(it1 + d) - *(it2 + d);
         dd += diff * diff;
     }
     return std::sqrt(dd);

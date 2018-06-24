@@ -41,53 +41,55 @@
 namespace tsne
 {
 // Default constructor for SPTree -- build tree, too!
-SPTree::SPTree(int D, const std::vector<double>& inp_data, int N)
+SPTree::SPTree(int D, std::shared_ptr<std::vector<double>> inp_data, int N)
 {
     // Compute mean, width, and height of current map (boundaries of SPTree)
     int nD = 0;
-    auto mean_Y = std::vector<double>(D);
+    auto mean_Y = std::make_shared<std::vector<double>>(D);
     auto min_Y = std::vector<double>(D, std::numeric_limits<double>::max());
     auto max_Y = std::vector<double>(D, -std::numeric_limits<double>::max());
     for (int n = 0; n < N; n++)
     {
         for (int d = 0; d < D; d++)
         {
-            mean_Y[d] += inp_data[n * D + d];
-            if (inp_data[nD + d] < min_Y[d]) min_Y[d] = inp_data[nD + d];
-            if (inp_data[nD + d] > max_Y[d]) max_Y[d] = inp_data[nD + d];
+            (*mean_Y)[d] += (*inp_data)[n * D + d];
+            if ((*inp_data)[nD + d] < min_Y[d]) min_Y[d] = (*inp_data)[nD + d];
+            if ((*inp_data)[nD + d] > max_Y[d]) max_Y[d] = (*inp_data)[nD + d];
         }
         nD += D;
     }
     for (int d = 0; d < D; d++)
-        mean_Y[d] /= static_cast<double>(N);
+        (*mean_Y)[d] /= static_cast<double>(N);
 
     // Construct SPTree
-    auto width = std::vector<double>(D);
+    auto width = std::make_shared<std::vector<double>>(D);
     for (int d = 0; d < D; d++)
-        width[d] = std::max(max_Y[d] - mean_Y[d], mean_Y[d] - min_Y[d]) + 1e-5;
+        (*width)[d] = std::max(max_Y[d] - (*mean_Y)[d], (*mean_Y)[d] - min_Y[d]) + 1e-5;
     init(D, inp_data, mean_Y, width);
     fill(N);
 }
 
 // Constructor for SPTree with particular size -- build the tree, too!
-SPTree::SPTree(int D, const std::vector<double>& inp_data, int N,
-    const std::vector<double>& inp_corner, const std::vector<double>& inp_width)
+SPTree::SPTree(int D, std::shared_ptr<std::vector<double>> inp_data, int N,
+    std::shared_ptr<std::vector<double>> inp_corner,
+    std::shared_ptr<std::vector<double>> inp_width)
 {
     init(D, inp_data, inp_corner, inp_width);
     fill(N);
 }
 
 // Constructor for SPTree with particular size (do not fill the tree)
-SPTree::SPTree(int D, const std::vector<double>& inp_data,
-    const std::vector<double>& inp_corner, const std::vector<double>& inp_width)
+SPTree::SPTree(int D, std::shared_ptr<std::vector<double>> inp_data,
+    std::shared_ptr<std::vector<double>> inp_corner,
+    std::shared_ptr<std::vector<double>> inp_width)
 {
     init(D, inp_data, inp_corner, inp_width);
 }
 
 // Main initialization function
-void SPTree::init(int D, const std::vector<double>& inp_data,
-    const std::vector<double>& inp_corner,
-    const std::vector<double>& inp_width)
+void SPTree::init(int D, std::shared_ptr<std::vector<double>> inp_data,
+    std::shared_ptr<std::vector<double>> inp_corner,
+    std::shared_ptr<std::vector<double>> inp_width)
 {
     dimension = D;
     no_children = 2;
@@ -117,9 +119,7 @@ bool SPTree::insert(int new_index)
     double mult1 = static_cast<double>(cum_size - 1) / static_cast<double>(cum_size);
     double mult2 = 1.0 / static_cast<double>(cum_size);
     for (int d = 0; d < dimension; d++)
-        center_of_mass[d] *= mult1;
-    for (int d = 0; d < dimension; d++)
-        center_of_mass[d] += mult2 * data[d + offset];
+        center_of_mass[d] = center_of_mass[d] * mult1 + mult2 * (*data)[d + offset];
 
     // If there is space in this quad tree and it is a leaf, add the object here
     if (is_leaf && size < QT_NODE_CAPACITY)
@@ -136,7 +136,7 @@ bool SPTree::insert(int new_index)
         bool duplicate = true;
         for (int d = 0; d < dimension; d++)
         {
-            if (data[d + offset] != data[index[n] * dimension + d])
+            if ((*data)[d + offset] != (*data)[index[n] * dimension + d])
             {
                 duplicate = false;
                 break;
@@ -166,18 +166,18 @@ bool SPTree::insert(int new_index)
 void SPTree::subdivide()
 {
     // Create new children
-    auto new_corner = std::vector<double>(dimension);
-    auto new_width = std::vector<double>(dimension);
+    auto new_corner = std::make_shared<std::vector<double>>(dimension);
+    auto new_width = std::make_shared<std::vector<double>>(dimension);
     for (int i = 0; i < no_children; i++)
     {
         int div = 1;
         for (int d = 0; d < dimension; d++)
         {
-            new_width[d] = 0.5 * boundary->getWidth(d);
+            (*new_width)[d] = 0.5 * boundary->getWidth(d);
             if ((i / div) % 2 == 1)
-                new_corner[d] = boundary->getCorner(d) - 0.5 * boundary->getWidth(d);
+                (*new_corner)[d] = boundary->getCorner(d) - 0.5 * boundary->getWidth(d);
             else
-                new_corner[d] = boundary->getCorner(d) + 0.5 * boundary->getWidth(d);
+                (*new_corner)[d] = boundary->getCorner(d) + 0.5 * boundary->getWidth(d);
             div *= 2;
         }
         children[i] = std::make_unique<SPTree>(dimension, data, new_corner, new_width);
@@ -186,11 +186,10 @@ void SPTree::subdivide()
     // Move existing points to correct children
     for (int i = 0; i < size; i++)
     {
-        bool success = false;
         for (int j = 0; j < no_children; j++)
         {
-            if (!success)
-                success = children[j]->insert(index[i]);
+            if (children[j]->insert(index[i]))
+                break;
         }
         index[i] = -1;
     }
@@ -251,7 +250,7 @@ void SPTree::computeNonEdgeForces(
     int ind = point_index * dimension;
     for (int d = 0; d < dimension; d++)
     {
-        double temp = data[ind + d] - center_of_mass[d];
+        double temp = (*data)[ind + d] - center_of_mass[d];
         D += temp * temp;
     }
 
@@ -272,7 +271,7 @@ void SPTree::computeNonEdgeForces(
         sum_Q += mult;
         mult *= D;
         for (int d = 0; d < dimension; d++)
-            neg_f[d + neg_offset] += mult * (data[ind + d] - center_of_mass[d]);
+            neg_f[d + neg_offset] += mult * ((*data)[ind + d] - center_of_mass[d]);
     }
     else
     {

@@ -40,13 +40,13 @@ namespace tsne
 DataPoint::DataPoint()
     : m_D(1)
     , m_ind(-1)
-    , m_x()
+    , m_it()
 {
 }
-DataPoint::DataPoint(int D, int ind, const std::vector<double>& x)
+DataPoint::DataPoint(int D, int ind, itType itX)
     : m_D(D)
     , m_ind(ind)
-    , m_x(x)
+    , m_it(itX)
 {
 }
 }

@@ -45,9 +45,10 @@
 namespace tsne
 {
 // Perform t-SNE
-void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
-    int no_dims, double perplexity, double theta, int rand_seed, bool skip_random_init,
-    int max_iter, int stop_lying_iter, int mom_switch_iter)
+void TSNE::run(std::shared_ptr<std::vector<double>> X, int N, int D,
+    std::shared_ptr<std::vector<double>> Y, int no_dims, double perplexity, double theta,
+    int rand_seed, bool skip_random_init, int max_iter, int stop_lying_iter,
+    int mom_switch_iter)
 {
     // Set random seed
     if (!skip_random_init)
@@ -85,7 +86,7 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
     // Allocate some memory
     auto dY = std::vector<double>(N * no_dims);
     auto uY = std::vector<double>(N * no_dims);
-    auto gains = std::vector<double>(N * no_dims);
+    auto gains = std::vector<double>(N * no_dims, 1.0);
 
     // Normalize input data (to prevent numerical problems)
     std::cout << "Computing input similarities..." << std::endl;
@@ -93,22 +94,23 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
 
     zeroMean(X, N, D);
 
-    double max_X = *std::max_element(std::begin(X), std::end(X), detail::abs_compare);
+    double max_X = *std::max_element(X->begin(), X->end(), detail::abs_compare);
     max_X = std::abs(max_X);
-    for(int i = 0; i < N * D; i++) X[i] /= max_X;
+    for(int i = 0; i < N * D; i++) (*X)[i] /= max_X;
 
     // Compute input similarities for approximate t-SNE
     auto row_P = std::vector<int>();
     auto col_P = row_P;
     auto val_P = std::vector<double>();
     // Compute asymmetric pairwise input similarities
+
     computeGaussianPerplexity(
         X, N, D, row_P, col_P, val_P, perplexity, static_cast<int>(3 * perplexity));
 
     // Symmetrize input similarities
     symmetrizeMatrix(row_P, col_P, val_P, N);
 
-    double sum_P = std::accumulate(std::begin(val_P), std::begin(val_P) + row_P[N],
+    double sum_P = std::accumulate(val_P.begin(), val_P.begin() + row_P[N],
         0.0);
     for (int i = 0; i < row_P[N]; i++)
         val_P[i] /= sum_P;
@@ -121,9 +123,8 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
     // Initialize solution (randomly)
     if (skip_random_init != true)
     {
-        #pragma omp parallel for
         for (int i = 0; i < N * no_dims; i++)
-            Y[i] = randn() * 0.0001;
+            (*Y)[i] = randn() * 0.0001;
     }
 
     double elapsed_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() / 1000.0;
@@ -141,15 +142,17 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
 
         // Update gains and
         // Perform gradient update (with momentum and gains)
-        #pragma omp parallel for
+        //#pragma omp parallel for
         for (int i = 0; i < N * no_dims; i++)
         {
             gains[i] = (detail::sign(dY[i]) != detail::sign(uY[i]))
                 ? (gains[i] + 0.2) : (gains[i] * 0.8);
+
             if (gains[i] < 0.01)
                 gains[i] = 0.01;
+
             uY[i] = momentum * uY[i] - eta * gains[i] * dY[i];
-            Y[i] = Y[i] + uY[i];
+            (*Y)[i] += uY[i];
         }
 
         // Make solution zero-mean
@@ -169,7 +172,6 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
         {
             end_time = std::chrono::system_clock::now();
             double C = 0.0;
-            std::cout << "error" << std::endl;
             C = evaluateError(row_P, col_P, val_P, Y, N, no_dims, theta);
             if (iter == 0)
                 std::cout << "Iteration: " << iter << ", error is " << C << std::endl;
@@ -193,7 +195,8 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
 // Compute gradient of the t-SNE cost function (using Barnes-Hut algorithm)
 void TSNE::computeGradient(const std::vector<int>& row_P,
     const std::vector<int>& col_P, const std::vector<double>& val_P,
-    std::vector<double>& Y, int N, int D, std::vector<double>& dC, double theta)
+    std::shared_ptr<std::vector<double>> Y, int N, int D, std::vector<double>& dC,
+    double theta)
 {
     // Construct space-partitioning tree on current map
     auto tree = std::make_unique<SPTree>(D, Y, N);
@@ -217,14 +220,14 @@ void TSNE::computeGradient(const std::vector<int>& row_P,
             int ind2 = col_P[i] * D;
             for (int d = 0; d < D; d++)
             {
-                double temp = Y[ind1 + d] - Y[ind2 + d];
+                double temp = (*Y)[ind1 + d] - (*Y)[ind2 + d];
                 dist += temp * temp;
             }
             dist = val_P[i] / dist;
 
             // Sum positive force
             for (int d = 0; d < D; d++)
-                pos_f[ind1 + d] += dist * (Y[ind1 + d] - Y[ind2 + d]);
+                pos_f[ind1 + d] += dist * ((*Y)[ind1 + d] - (*Y)[ind2 + d]);
         }
 
         double current_Q = 0.0;
@@ -238,15 +241,15 @@ void TSNE::computeGradient(const std::vector<int>& row_P,
         sum_Q += local_Q[n];
 
     // Compute final t-SNE gradient
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for (int i = 0; i < N * D; i++)
         dC[i] = pos_f[i] - (neg_f[i] / sum_Q);
 }
 
 // Evaluate t-SNE cost function (approximately)
 double TSNE::evaluateError(const std::vector<int>& row_P, const std::vector<int>& col_P,
-    const std::vector<double>& val_P, const std::vector<double>& Y, int N, int D,
-    double theta)
+    const std::vector<double>& val_P, std::shared_ptr<std::vector<double>> Y, int N,
+    int D, double theta)
 {
     // Get estimate of normalization term
     auto tree = std::make_unique<SPTree>(D, Y, N);
@@ -267,7 +270,7 @@ double TSNE::evaluateError(const std::vector<int>& row_P, const std::vector<int>
             int ind2 = col_P[i] * D;
             for (int d = 0; d < D; d++)
             {
-                double temp = Y[ind1 + d] - Y[ind2 + d];
+                double temp = (*Y)[ind1 + d] - (*Y)[ind2 + d];
                 Q += temp * temp;
             }
             Q = (1.0 / (1.0 + Q)) / sum_Q;
@@ -280,7 +283,7 @@ double TSNE::evaluateError(const std::vector<int>& row_P, const std::vector<int>
 }
 
 // Compute input similarities with a fixed perplexity using ball trees
-void TSNE::computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
+void TSNE::computeGaussianPerplexity(std::shared_ptr<std::vector<double>> X, int N, int D,
     std::vector<int>& row_P, std::vector<int>& col_P, std::vector<double>& val_P,
     double perplexity, int K)
 {
@@ -288,9 +291,9 @@ void TSNE::computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
         std::cout << "Perplexity should be lower than K!" << std::endl;
 
     // Allocate the memory we need
-    row_P = std::vector<int>(N + 1);
-    col_P = std::vector<int>(N * K);
-    val_P = std::vector<double>(N * K);
+    row_P.resize(N + 1);
+    col_P.resize(N * K);
+    val_P.resize(N * K);
 
     row_P[0] = 0;
     for (int n = 0; n < N; n++)
@@ -298,10 +301,9 @@ void TSNE::computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
 
     // Build ball tree on data set
     auto tree = std::make_unique<VpTree>();;
-    std::vector<DataPoint> obj_X(N);
+    auto obj_X = std::vector<DataPoint>(N);
     for (int n = 0; n < N; n++)
-        obj_X[n] = DataPoint(D, n,
-            std::vector<double>(std::begin(X) + n * D, std::begin(X) + n * D + D));
+        obj_X[n] = DataPoint(D, n, X->cbegin() + n * D);
     tree->create(obj_X);
 
     // Loop over all points to find nearest neighbors
@@ -475,30 +477,8 @@ void TSNE::symmetrizeMatrix(std::vector<int>& row_P, std::vector<int>& col_P,
     val_P = std::move(sym_val_P);
 }
 
-// Compute squared Euclidean distance matrix
-void TSNE::computeSquaredEuclideanDistance(const std::vector<double>& X, int N, int D,
-    std::vector<double>& DD)
-{
-    int XnD = 0;
-    for (int n = 0; n < N; ++n, XnD += D)
-    {
-        int XmD = XnD + D;
-        int curr_elem = n * N + n;
-        int curr_elem_sym = curr_elem + N;
-        for (int m = n + 1; m < N; ++m, XmD += D, curr_elem_sym += N)
-        {
-            DD[++curr_elem] = 0.0;
-            for (int d = 0; d < D; ++d)
-            {
-                DD[curr_elem] += (X[XnD + d] - X[XmD + d]) * (X[XnD + d] - X[XmD + d]);
-            }
-            DD[curr_elem_sym] = DD[curr_elem];
-        }
-    }
-}
-
 // Makes data zero-mean
-void TSNE::zeroMean(std::vector<double>& X, int N, int D)
+void TSNE::zeroMean(std::shared_ptr<std::vector<double>> X, int N, int D)
 {
     // Compute data mean
     auto mean = std::vector<double>(D);
@@ -507,7 +487,7 @@ void TSNE::zeroMean(std::vector<double>& X, int N, int D)
     {
         for (int d = 0; d < D; d++)
         {
-            mean[d] += X[nD + d];
+            mean[d] += (*X)[nD + d];
         }
         nD += D;
     }
@@ -522,7 +502,7 @@ void TSNE::zeroMean(std::vector<double>& X, int N, int D)
     {
         for (int d = 0; d < D; d++)
         {
-            X[nD + d] -= mean[d];
+            (*X)[nD + d] -= mean[d];
         }
         nD += D;
     }

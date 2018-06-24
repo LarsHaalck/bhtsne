@@ -60,7 +60,7 @@ private:
 
     // Indices in this space-partitioning tree node, corresponding center-of-mass, and
     // list of all children
-    std::vector<double> data;
+    std::shared_ptr<std::vector<double>> data;
     std::vector<double> center_of_mass;
     int index[QT_NODE_CAPACITY];
 
@@ -69,11 +69,13 @@ private:
     int no_children;
 
 public:
-    SPTree(int D, const std::vector<double>& inp_data, int N);
-    SPTree(int D, const std::vector<double>& inp_data,
-        const std::vector<double>& inp_corner, const std::vector<double>& inp_width);
-    SPTree(int D, const std::vector<double>& inp_data, int N,
-        const std::vector<double>& inp_corner, const std::vector<double>& inp_width);
+    SPTree(int D, std::shared_ptr<std::vector<double>> inp_data, int N);
+    SPTree(int D, std::shared_ptr<std::vector<double>> inp_data,
+        std::shared_ptr<std::vector<double>> inp_corner,
+        std::shared_ptr<std::vector<double>> inp_width);
+    SPTree(int D, std::shared_ptr<std::vector<double>> inp_data, int N,
+        std::shared_ptr<std::vector<double>> inp_corner,
+        std::shared_ptr<std::vector<double>> inp_width);
 
     bool insert(int new_index);
     void subdivide();
@@ -82,8 +84,9 @@ public:
     void computeNonEdgeForces(int point_index, double theta, std::vector<double>& neg_f,
         int neg_offset, double& sum_Q);
 private:
-    void init(int D, const std::vector<double>& inp_data,
-        const std::vector<double>& inp_corner, const std::vector<double>& inp_width);
+    void init(int D, std::shared_ptr<std::vector<double>> inp_data,
+        std::shared_ptr<std::vector<double>> inp_corner,
+        std::shared_ptr<std::vector<double>> inp_width);
     void fill(int N);
 };
 }
