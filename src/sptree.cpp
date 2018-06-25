@@ -206,36 +206,6 @@ void SPTree::fill(int N)
         insert(i);
 }
 
-// Checks whether the specified tree is correct
-bool SPTree::isCorrect()
-{
-    for (int n = 0; n < size; n++)
-    {
-        int offset = index[n] * dimension;
-        if (!boundary->containsPoint(data, offset))
-            return false;
-    }
-    if (!is_leaf)
-    {
-        bool correct = true;
-        for (int i = 0; i < no_children; i++)
-            correct = correct && children[i]->isCorrect();
-        return correct;
-    }
-    else
-        return true;
-}
-
-int SPTree::getDepth()
-{
-    if (is_leaf)
-        return 1;
-    int depth = 0;
-    for (int i = 0; i < no_children; i++)
-        depth = std::max(depth, children[i]->getDepth());
-    return 1 + depth;
-}
-
 // Compute non-edge forces using Barnes-Hut algorithm
 void SPTree::computeNonEdgeForces(
     int point_index, double theta, std::vector<double>& neg_f, int neg_offset,
@@ -255,23 +225,19 @@ void SPTree::computeNonEdgeForces(
     }
 
     // Check whether we can use this node as a "summary"
-    double max_width = 0.0;
-    double cur_width;
-    for (int d = 0; d < dimension; d++)
-    {
-        cur_width = boundary->getWidth(d);
-        max_width = (max_width > cur_width) ? max_width : cur_width;
-    }
+    double max_width = boundary->getMaxWidth();
     if (is_leaf || max_width / std::sqrt(D) < theta)
     {
-
         // Compute and add t-SNE force between point and current node
         D = 1.0 / (1.0 + D);
         double mult = cum_size * D;
         sum_Q += mult;
         mult *= D;
-        for (int d = 0; d < dimension; d++)
-            neg_f[d + neg_offset] += mult * ((*data)[ind + d] - center_of_mass[d]);
+        if (neg_f.size() > 0)
+        {
+            for (int d = 0; d < dimension; d++)
+                neg_f[d + neg_offset] += mult * ((*data)[ind + d] - center_of_mass[d]);
+        }
     }
     else
     {

@@ -36,6 +36,7 @@
 
 #include <chrono>
 #include <functional>
+#include <random>
 #include <iostream>
 #include <limits>
 #include <cmath>
@@ -47,24 +48,9 @@ namespace tsne
 // Perform t-SNE
 void TSNE::run(std::shared_ptr<std::vector<double>> X, int N, int D,
     std::shared_ptr<std::vector<double>> Y, int no_dims, double perplexity, double theta,
-    int rand_seed, bool skip_random_init, int max_iter, int stop_lying_iter,
+    double learning_rate, bool skip_random_init, int max_iter, int stop_lying_iter,
     int mom_switch_iter)
 {
-    // Set random seed
-    if (!skip_random_init)
-    {
-        if (rand_seed >= 0)
-        {
-            std::cout << "Using random seed: " << rand_seed << std::endl;
-            srand((unsigned int)rand_seed);
-        }
-        else
-        {
-            std::cout << "Using current time as random seed..." << std::endl;
-            srand(time(NULL));
-        }
-    }
-
     // Determine whether we are using an exact algorithm
     if (N - 1 < 3 * perplexity)
     {
@@ -81,7 +67,7 @@ void TSNE::run(std::shared_ptr<std::vector<double>> X, int N, int D,
     double total_time = 0.0;
     double momentum = 0.5;
     double final_momentum = 0.8;
-    double eta = 200.0;
+    double eta = learning_rate;
 
     // Allocate some memory
     auto dY = std::vector<double>(N * no_dims);
@@ -122,10 +108,7 @@ void TSNE::run(std::shared_ptr<std::vector<double>> X, int N, int D,
 
     // Initialize solution (randomly)
     if (skip_random_init != true)
-    {
-        for (int i = 0; i < N * no_dims; i++)
-            (*Y)[i] = randn() * 0.0001;
-    }
+        fillRandom(Y);
 
     double elapsed_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() / 1000.0;
     double sparsity = static_cast<double>(row_P[N]) / (N * N);
@@ -142,7 +125,6 @@ void TSNE::run(std::shared_ptr<std::vector<double>> X, int N, int D,
 
         // Update gains and
         // Perform gradient update (with momentum and gains)
-        //#pragma omp parallel for
         for (int i = 0; i < N * no_dims; i++)
         {
             gains[i] = (detail::sign(dY[i]) != detail::sign(uY[i]))
@@ -236,12 +218,10 @@ void TSNE::computeGradient(const std::vector<int>& row_P,
     }
 
     double sum_Q = 0.0;
-    //#pragma omp parallel for reduction(+:sum_Q)
     for (int n = 0; n < N; n++)
         sum_Q += local_Q[n];
 
     // Compute final t-SNE gradient
-    //#pragma omp parallel for
     for (int i = 0; i < N * D; i++)
         dC[i] = pos_f[i] - (neg_f[i] / sum_Q);
 }
@@ -253,7 +233,7 @@ double TSNE::evaluateError(const std::vector<int>& row_P, const std::vector<int>
 {
     // Get estimate of normalization term
     auto tree = std::make_unique<SPTree>(D, Y, N);
-    auto buff = std::vector<double>(D);
+    auto buff = std::vector<double>();
     double sum_Q = 0.0;
     for (int n = 0; n < N; n++)
         tree->computeNonEdgeForces(n, theta, buff, 0, sum_Q);
@@ -482,45 +462,37 @@ void TSNE::zeroMean(std::shared_ptr<std::vector<double>> X, int N, int D)
 {
     // Compute data mean
     auto mean = std::vector<double>(D);
-    int nD = 0;
     for (int n = 0; n < N; n++)
     {
         for (int d = 0; d < D; d++)
         {
-            mean[d] += (*X)[nD + d];
+            mean[d] += (*X)[n * D + d];
         }
-        nD += D;
     }
+
     for (int d = 0; d < D; d++)
     {
         mean[d] /= static_cast<double>(N);
     }
 
     // Subtract data mean
-    nD = 0;
     for (int n = 0; n < N; n++)
     {
         for (int d = 0; d < D; d++)
         {
-            (*X)[nD + d] -= mean[d];
+            (*X)[n * D + d] -= mean[d];
         }
-        nD += D;
     }
 }
 
 // Generates a Gaussian random number
-double TSNE::randn()
+void TSNE::fillRandom(std::shared_ptr<std::vector<double>> Y, double mean, double dev)
 {
-    double x, y, radius;
-    do
-    {
-        x = 2 * (std::rand() / ((double)RAND_MAX + 1)) - 1;
-        y = 2 * (std::rand() / ((double)RAND_MAX + 1)) - 1;
-        radius = (x * x) + (y * y);
-    } while ((radius >= 1.0) || (radius == 0.0));
-    radius = std::sqrt(-2 * std::log(radius) / radius);
-    x *= radius;
-    y *= radius;
-    return x;
+    unsigned int seed = static_cast<unsigned int>(std::chrono::system_clock::now().time_since_epoch().count());
+    std::default_random_engine gen(seed);
+    std::normal_distribution<double> dist(mean, dev);
+
+    for (int i = 0; i < static_cast<int>(Y->size()); i++)
+        (*Y)[i] = dist(gen);
 }
 }

@@ -45,17 +45,19 @@ private:
     int m_dimension;
     std::shared_ptr<std::vector<double>> m_corner;
     std::shared_ptr<std::vector<double>> m_width;
+    double m_max_width;
 
 public:
     Cell(int inp_dimension);
     Cell(int inp_dimension, std::shared_ptr<std::vector<double>> inp_corner,
         std::shared_ptr<std::vector<double>> inp_width);
 
-    double getCorner(int d) { return (*m_corner)[d]; }
-    double getWidth(int d) { return (*m_width)[d]; }
+    double getCorner(int d) const { return (*m_corner)[d]; }
+    double getWidth(int d) const { return (*m_width)[d]; }
     void setCorner(int d, double val) { (*m_corner)[d] = val; }
     void setWidth(int d, double val) { (*m_width)[d] = val; }
-    bool containsPoint(std::shared_ptr<std::vector<double>> point, int offset = 0);
+    double getMaxWidth() const { return m_max_width; }
+    bool containsPoint(std::shared_ptr<std::vector<double>> point, int offset = 0) const;
 };
 }
 

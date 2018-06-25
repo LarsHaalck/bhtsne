@@ -79,8 +79,6 @@ public:
 
     bool insert(int new_index);
     void subdivide();
-    bool isCorrect();
-    int getDepth();
     void computeNonEdgeForces(int point_index, double theta, std::vector<double>& neg_f,
         int neg_offset, double& sum_Q);
 private:

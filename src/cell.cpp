@@ -31,6 +31,9 @@
  */
 
 #include "cell.h"
+#include <cmath>
+#include <numeric>
+#include <algorithm>
 
 namespace tsne
 {
@@ -38,6 +41,7 @@ Cell::Cell(int inp_dimension)
     : m_dimension(inp_dimension)
     , m_corner()
     , m_width()
+    , m_max_width(0)
 {
 }
 
@@ -46,17 +50,18 @@ Cell::Cell(int inp_dimension, std::shared_ptr<std::vector<double>> inp_corner,
     : m_dimension(inp_dimension)
     , m_corner(inp_corner)
     , m_width(inp_width)
+    , m_max_width(0)
 {
+    for (int d = 0; d < m_dimension; d++)
+        m_max_width = std::max(m_max_width, (*m_width)[d]);
 }
 
 // Checks whether a point lies in a cell
-bool Cell::containsPoint(std::shared_ptr<std::vector<double>> point, int offset)
+bool Cell::containsPoint(std::shared_ptr<std::vector<double>> point, int offset) const
 {
     for (int d = 0; d < m_dimension; d++)
     {
-        if ((*m_corner)[d] - (*m_width)[d] > (*point)[d + offset])
-            return false;
-        if ((*m_corner)[d] + (*m_width)[d] < (*point)[d + offset])
+        if (std::abs((*m_corner)[d] - (*point)[d + offset]) > (*m_width)[d])
             return false;
     }
     return true;

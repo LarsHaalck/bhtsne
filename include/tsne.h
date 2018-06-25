@@ -51,8 +51,8 @@ class TSNE
 public:
     static void run(std::shared_ptr<std::vector<double>> X, int N, int D,
         std::shared_ptr<std::vector<double>> Y, int no_dims, double perplexity,
-        double theta, int rand_seed, bool skip_random_init, int max_iter = 1000,
-        int stop_lying_iter = 250, int mom_switch_iter = 250);
+        double theta, double learning_rate = 200.0, bool skip_random_init = false,
+        int max_iter = 1000, int stop_lying_iter = 250, int mom_switch_iter = 250);
     static void symmetrizeMatrix(std::vector<int>& row_P, std::vector<int>& col_P,
         std::vector<double>& val_P, int N);
 
@@ -68,7 +68,8 @@ private:
         int D, std::vector<int>& row_P, std::vector<int>& col_P,
         std::vector<double>& val_P, double perplexity, int K);;
     static void zeroMean(std::shared_ptr<std::vector<double>> X, int N, int D);
-    static double randn();
+    static void fillRandom(std::shared_ptr<std::vector<double>> Y, double mean = 0.0,
+        double dev = 0.0001);
 
 
 };
