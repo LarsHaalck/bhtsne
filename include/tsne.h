@@ -66,7 +66,7 @@ private:
         int D, double theta);
     static void computeGaussianPerplexity(std::shared_ptr<std::vector<double>> X, int N,
         int D, std::vector<int>& row_P, std::vector<int>& col_P,
-        std::vector<double>& val_P, double perplexity, int K);;
+        std::vector<double>& val_P, double perplexity, int K);
     static void zeroMean(std::shared_ptr<std::vector<double>> X, int N, int D);
     static void fillRandom(std::shared_ptr<std::vector<double>> Y, double mean = 0.0,
         double dev = 0.0001);

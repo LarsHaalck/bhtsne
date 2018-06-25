@@ -1,3 +1,0 @@
-maybe replace doubles with floats
-do pca in python wrapper
-build tool for pip install

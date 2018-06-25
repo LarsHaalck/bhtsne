@@ -1,11 +1,16 @@
 cmake_minimum_required(VERSION 3.1)
-project(tsne_omp)
+project(tsne_cpp)
 
 set(CMAKE_CXX_STANDARD 14)
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wpedantic -Werror -Wno-unknown-pragmas")
-#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -ffast-math -funroll-loops")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wpedantic -Werror -Wno-unknown-pragmas")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -ffast-math -funroll-loops")
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
+
+# default to Release if not set explicitily
+if("${CMAKE_BUILD_TYPE}" STREQUAL "")
+  set(CMAKE_BUILD_TYPE Release)
+endif()
 
 set(INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
 set(SOURCES
@@ -16,7 +21,11 @@ set(SOURCES
     ${CMAKE_SOURCE_DIR}/src/vptree.cpp
 )
 set(PYTHON_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/tsne_python.cpp
+    ${CMAKE_SOURCE_DIR}/src/python_wrapper.cpp
+)
+
+set(CPP_MAIN_SOURCES
+    ${CMAKE_SOURCE_DIR}/src/main.cpp
 )
 
 
@@ -29,17 +38,17 @@ else()
     message(STATUS "Couldn't find OpenMP. Building without...")
 endif()
 
-#find_package(PythonLibs 2.7 REQUIRED)
-#find_package(PythonInterp 2.7 REQUIRED) # needed for numpy find module
-#find_package(Boost REQUIRED python27) # TODO: add version for boost
-#find_package(NumPy REQUIRED) # TODO: add version for numpy
+find_package(PythonLibs 2.7 REQUIRED)
+find_package(PythonInterp 2.7 REQUIRED) # needed for numpy find module
+find_package(Boost REQUIRED python27) # TODO: add version for boost
+find_package(NumPy REQUIRED) # TODO: add version for numpy
 
-#add_library(${CMAKE_PROJECT_NAME} SHARED ${PYTHON_SOURCES} ${SOURCES})
-#target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ${INCLUDE_DIR}
-#    ${PYTHON_INCLUDE_DIRS} ${NUMPY_INCLUDE_DIR})
-#target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC ${Boost_LIBRARIES} ${PYTHON_LIBRARIES})
-#set_property(TARGET ${CMAKE_PROJECT_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
-#set_property(TARGET ${CMAKE_PROJECT_NAME} PROPERTY PREFIX "")
+add_library(${CMAKE_PROJECT_NAME} SHARED ${PYTHON_SOURCES} ${SOURCES})
+target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ${INCLUDE_DIR}
+    ${PYTHON_INCLUDE_DIRS} ${NUMPY_INCLUDE_DIR})
+target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC ${Boost_LIBRARIES} ${PYTHON_LIBRARIES})
+set_property(TARGET ${CMAKE_PROJECT_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET ${CMAKE_PROJECT_NAME} PROPERTY PREFIX "")
 
-add_executable(bla ${CMAKE_SOURCE_DIR}/src/tsne_main.cpp ${SOURCES})
-target_include_directories(bla PUBLIC ${INCLUDE_DIR})
+add_executable(main ${CPP_MAIN_SOURCES} ${SOURCES})
+target_include_directories(main PUBLIC ${INCLUDE_DIR})
