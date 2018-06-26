@@ -153,8 +153,7 @@ void TSNE::run(std::shared_ptr<std::vector<double>> X, int N, int D,
         if ((iter % 50 == 0 || iter == max_iter - 1))
         {
             end_time = std::chrono::system_clock::now();
-            double C = 0.0;
-            C = evaluateError(row_P, col_P, val_P, Y, N, no_dims, theta);
+            double C = evaluateError(row_P, col_P, val_P, Y, N, no_dims, theta);
             if (iter == 0)
                 std::cout << "Iteration: " << iter << ", error is " << C << std::endl;
             else
@@ -233,7 +232,7 @@ double TSNE::evaluateError(const std::vector<int>& row_P, const std::vector<int>
 {
     // Get estimate of normalization term
     auto tree = std::make_unique<SPTree>(D, Y, N);
-    auto buff = std::vector<double>();
+    auto buff = std::vector<double>(N);
     double sum_Q = 0.0;
     for (int n = 0; n < N; n++)
         tree->computeNonEdgeForces(n, theta, buff, 0, sum_Q);

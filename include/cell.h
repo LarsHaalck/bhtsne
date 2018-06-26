@@ -54,8 +54,6 @@ public:
 
     double getCorner(int d) const { return (*m_corner)[d]; }
     double getWidth(int d) const { return (*m_width)[d]; }
-    void setCorner(int d, double val) { (*m_corner)[d] = val; }
-    void setWidth(int d, double val) { (*m_width)[d] = val; }
     double getMaxWidth() const { return m_max_width; }
     bool containsPoint(std::shared_ptr<std::vector<double>> point, int offset = 0) const;
 };

@@ -180,7 +180,9 @@ void SPTree::subdivide()
                 (*new_corner)[d] = boundary->getCorner(d) + 0.5 * boundary->getWidth(d);
             div *= 2;
         }
-        children[i] = std::make_unique<SPTree>(dimension, data, new_corner, new_width);
+        children[i] = std::make_unique<SPTree>(dimension, data,
+                std::make_shared<std::vector<double>>(*new_corner),
+                std::make_shared<std::vector<double>>(*new_width));
     }
 
     // Move existing points to correct children
