@@ -189,7 +189,7 @@ void TSNE::computeGradient(const std::vector<int>& row_P,
     // was tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f); before
     // data in sptree equals Y here
     auto local_Q = std::vector<double>(N);
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(dynamic, 256)
     for (int n = 0; n < N; n++)
     {
         //computeEdgeForces
@@ -232,7 +232,7 @@ double TSNE::evaluateError(const std::vector<int>& row_P, const std::vector<int>
 {
     // Get estimate of normalization term
     auto tree = std::make_unique<SPTree>(D, Y, N);
-    auto buff = std::vector<double>(N);
+    auto buff = std::vector<double>();
     double sum_Q = 0.0;
     for (int n = 0; n < N; n++)
         tree->computeNonEdgeForces(n, theta, buff, 0, sum_Q);

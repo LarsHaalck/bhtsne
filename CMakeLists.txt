@@ -8,10 +8,10 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -ffast-math -funroll
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
 
 # default to Release if not set explicitily
-if("${CMAKE_BUILD_TYPE}" STREQUAL "")
-  set(CMAKE_BUILD_TYPE Release)
-  message(STATUS "Using Release as default build type.")
-endif()
+#if("${CMAKE_BUILD_TYPE}" STREQUAL "")
+#  set(CMAKE_BUILD_TYPE Release)
+#  message(STATUS "Using Release as default build type.")
+#endif()
 
 set(INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
 set(SOURCES

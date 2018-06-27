@@ -65,7 +65,7 @@ SPTree::SPTree(int D, std::shared_ptr<std::vector<double>> inp_data, int N)
     auto width = std::make_shared<std::vector<double>>(D);
     for (int d = 0; d < D; d++)
         (*width)[d] = std::max(max_Y[d] - (*mean_Y)[d], (*mean_Y)[d] - min_Y[d]) + 1e-5;
-    init(D, inp_data, mean_Y, width);
+    init(D, std::move(inp_data), std::move(mean_Y), std::move(width));
     fill(N);
 }
 
@@ -74,7 +74,7 @@ SPTree::SPTree(int D, std::shared_ptr<std::vector<double>> inp_data, int N,
     std::shared_ptr<std::vector<double>> inp_corner,
     std::shared_ptr<std::vector<double>> inp_width)
 {
-    init(D, inp_data, inp_corner, inp_width);
+    init(D, std::move(inp_data), std::move(inp_corner), std::move(inp_width));
     fill(N);
 }
 
@@ -83,26 +83,44 @@ SPTree::SPTree(int D, std::shared_ptr<std::vector<double>> inp_data,
     std::shared_ptr<std::vector<double>> inp_corner,
     std::shared_ptr<std::vector<double>> inp_width)
 {
-    init(D, inp_data, inp_corner, inp_width);
+    init(D, std::move(inp_data), std::move(inp_corner), std::move(inp_width));
 }
 
-// Main initialization function
-void SPTree::init(int D, std::shared_ptr<std::vector<double>> inp_data,
-    std::shared_ptr<std::vector<double>> inp_corner,
-    std::shared_ptr<std::vector<double>> inp_width)
+SPTree::SPTree(int D, std::shared_ptr<std::vector<double>> inp_data,
+    const std::vector<double>& inp_corner,
+    const std::vector<double>& inp_width)
+{
+    init(D, std::move(inp_data), inp_corner, inp_width);
+}
+
+void SPTree::commonInit(int D, std::shared_ptr<std::vector<double>> inp_data)
 {
     dimension = D;
     no_children = 2;
     for (int d = 1; d < D; d++)
         no_children *= 2;
-    data = inp_data;
+    data = std::move(inp_data);
     is_leaf = true;
     size = 0;
     cum_size = 0;
 
-    boundary = std::make_unique<Cell>(dimension, inp_corner, inp_width);
     children = std::vector<std::unique_ptr<SPTree>>(no_children);
     center_of_mass = std::vector<double>(D, 0.0);
+}
+void SPTree::init(int D, std::shared_ptr<std::vector<double>> inp_data,
+    std::shared_ptr<std::vector<double>> inp_corner,
+    std::shared_ptr<std::vector<double>> inp_width)
+{
+    commonInit(D, inp_data);
+    boundary = std::make_unique<Cell>(dimension, std::move(inp_corner), std::move(inp_width));
+}
+
+void SPTree::init(int D, std::shared_ptr<std::vector<double>> inp_data,
+    const std::vector<double>& inp_corner,
+    const std::vector<double>& inp_width)
+{
+    commonInit(D, std::move(inp_data));
+    boundary = std::make_unique<Cell>(dimension, inp_corner, inp_width);;
 }
 
 // Insert a point into the SPTree
@@ -166,23 +184,21 @@ bool SPTree::insert(int new_index)
 void SPTree::subdivide()
 {
     // Create new children
-    auto new_corner = std::make_shared<std::vector<double>>(dimension);
-    auto new_width = std::make_shared<std::vector<double>>(dimension);
+    auto new_corner = std::vector<double>(dimension);
+    auto new_width = std::vector<double>(dimension);
     for (int i = 0; i < no_children; i++)
     {
         int div = 1;
         for (int d = 0; d < dimension; d++)
         {
-            (*new_width)[d] = 0.5 * boundary->getWidth(d);
+            new_width[d] = 0.5 * boundary->getWidth(d);
             if ((i / div) % 2 == 1)
-                (*new_corner)[d] = boundary->getCorner(d) - 0.5 * boundary->getWidth(d);
+                new_corner[d] = boundary->getCorner(d) - 0.5 * boundary->getWidth(d);
             else
-                (*new_corner)[d] = boundary->getCorner(d) + 0.5 * boundary->getWidth(d);
+                new_corner[d] = boundary->getCorner(d) + 0.5 * boundary->getWidth(d);
             div *= 2;
         }
-        children[i] = std::make_unique<SPTree>(dimension, data,
-                std::make_shared<std::vector<double>>(*new_corner),
-                std::make_shared<std::vector<double>>(*new_width));
+        children[i] = std::make_unique<SPTree>(dimension, data, new_corner, new_width);
     }
 
     // Move existing points to correct children
@@ -235,7 +251,7 @@ void SPTree::computeNonEdgeForces(
         double mult = cum_size * D;
         sum_Q += mult;
         mult *= D;
-        if (neg_f.size() > 0)
+        if (!neg_f.empty())
         {
             for (int d = 0; d < dimension; d++)
                 neg_f[d + neg_offset] += mult * ((*data)[ind + d] - center_of_mass[d]);

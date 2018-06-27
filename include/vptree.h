@@ -87,9 +87,9 @@ private:
         int index;
         double dist;
 
-        HeapItem(int index, double dist)
-            : index(index)
-            , dist(dist)
+        HeapItem(int a_index, double a_dist)
+            : index(a_index)
+            , dist(a_dist)
         {
         }
         bool operator<(const HeapItem& o) const { return dist < o.dist; }
@@ -100,8 +100,8 @@ private:
     {
         const DataPoint& item;
 
-        DistanceComparator(const DataPoint& item)
-            : item(item)
+        DistanceComparator(const DataPoint& a_item)
+            : item(a_item)
         {
         }
         bool operator()(const DataPoint& a, const DataPoint& b)

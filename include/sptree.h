@@ -73,6 +73,9 @@ public:
     SPTree(int D, std::shared_ptr<std::vector<double>> inp_data,
         std::shared_ptr<std::vector<double>> inp_corner,
         std::shared_ptr<std::vector<double>> inp_width);
+    SPTree(int D, std::shared_ptr<std::vector<double>> inp_data,
+        const std::vector<double>& inp_corner,
+        const std::vector<double>& inp_width);
     SPTree(int D, std::shared_ptr<std::vector<double>> inp_data, int N,
         std::shared_ptr<std::vector<double>> inp_corner,
         std::shared_ptr<std::vector<double>> inp_width);
@@ -82,9 +85,13 @@ public:
     void computeNonEdgeForces(int point_index, double theta, std::vector<double>& neg_f,
         int neg_offset, double& sum_Q);
 private:
+    void commonInit(int D, std::shared_ptr<std::vector<double>> inp_data);
     void init(int D, std::shared_ptr<std::vector<double>> inp_data,
         std::shared_ptr<std::vector<double>> inp_corner,
         std::shared_ptr<std::vector<double>> inp_width);
+    void init(int D, std::shared_ptr<std::vector<double>> inp_data,
+        const std::vector<double>& inp_corner,
+        const std::vector<double>& inp_width);
     void fill(int N);
 };
 }

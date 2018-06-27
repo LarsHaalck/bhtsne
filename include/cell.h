@@ -51,11 +51,15 @@ public:
     Cell(int inp_dimension);
     Cell(int inp_dimension, std::shared_ptr<std::vector<double>> inp_corner,
         std::shared_ptr<std::vector<double>> inp_width);
+    Cell(int inp_dimension, const std::vector<double>& inp_corner,
+            const std::vector<double>& inp_width);
 
     double getCorner(int d) const { return (*m_corner)[d]; }
     double getWidth(int d) const { return (*m_width)[d]; }
     double getMaxWidth() const { return m_max_width; }
     bool containsPoint(std::shared_ptr<std::vector<double>> point, int offset = 0) const;
+private:
+    void calculateMaxWidth();
 };
 }
 

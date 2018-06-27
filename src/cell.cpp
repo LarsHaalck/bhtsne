@@ -48,9 +48,24 @@ Cell::Cell(int inp_dimension)
 Cell::Cell(int inp_dimension, std::shared_ptr<std::vector<double>> inp_corner,
     std::shared_ptr<std::vector<double>> inp_width)
     : m_dimension(inp_dimension)
-    , m_corner(inp_corner)
-    , m_width(inp_width)
+    , m_corner(std::move(inp_corner))
+    , m_width(std::move(inp_width))
     , m_max_width(0)
+{
+    calculateMaxWidth();
+}
+
+Cell::Cell(int inp_dimension, const std::vector<double>& inp_corner,
+    const std::vector<double>& inp_width)
+    : m_dimension(inp_dimension)
+    , m_corner(std::make_shared<std::vector<double>>(inp_corner))
+    , m_width(std::make_shared<std::vector<double>>(inp_width))
+    , m_max_width(0)
+{
+    calculateMaxWidth();
+}
+
+void Cell::calculateMaxWidth()
 {
     for (int d = 0; d < m_dimension; d++)
         m_max_width = std::max(m_max_width, (*m_width)[d]);

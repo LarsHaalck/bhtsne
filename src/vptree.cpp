@@ -105,7 +105,7 @@ std::shared_ptr<VpTree::Node> VpTree::buildFromPoints(int lower, int upper)
     }
 
     // Return result
-    return node;
+    return std::move(node);
 }
 
 // Helper function that searches the tree
