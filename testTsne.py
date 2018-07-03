@@ -1,6 +1,10 @@
 import numpy as np
-import tsne
+from bhtsne_cpp11 import tsne_run
+import matplotlib.pyplot as plt
 
-arr = np.random.rand(1000, 500)
-res = tsne_omp.run(arr, noDims=2, perplexity=20, theta=0.5)
-print(res.shape)
+X = np.loadtxt("bhtsne_cpp11/mnist2500_X.txt")
+labels = np.loadtxt("bhtsne_cpp11/mnist2500_labels.txt")
+Y = tsne_run(X)
+
+plt.scatter(Y[:, 0], Y[:, 1], 20, labels)
+plt.show()

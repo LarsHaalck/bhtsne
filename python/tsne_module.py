@@ -14,6 +14,7 @@
 
 import numpy as np
 import pylab
+import scipy.spatial.distance as sdist
 
 def Hbeta(D=np.array([]), beta=1.0):
     """
@@ -28,7 +29,7 @@ def Hbeta(D=np.array([]), beta=1.0):
     P = P / sumP
     return H, P
 
-def x2p(X=np.array([]), tol=1e-5, perplexity=30.0):
+def x2p(X=np.array([]), tol=1e-5, perplexity=30.0, dist_measure='euclidean'):
     """
         Performs a binary search to get P-values in such a way that each
         conditional Gaussian has the same perplexity.
@@ -37,8 +38,16 @@ def x2p(X=np.array([]), tol=1e-5, perplexity=30.0):
     # Initialize some variables
     print("Computing pairwise distances...")
     (n, d) = X.shape
-    sum_X = np.sum(np.square(X), 1)
-    D = np.add(np.add(-2 * np.dot(X, X.T), sum_X).T, sum_X)
+
+    if dist_measure == 'euclidean':
+        sum_X = np.sum(np.square(X), 1)
+        D = np.add(np.add(-2 * np.dot(X, X.T), sum_X).T, sum_X)
+    elif dist_measure == 'jaccard': # jaccard
+        X = np.abs(X)
+        D = sdist.squareform(sdist.pdist(X, lambda u, v: np.sum(np.minimum(u, v))
+            / np.sum(np.maximum(u, v))))
+    else:
+        raise RuntimeError('unkown distance measure in tsne python module')
     P = np.zeros((n, n))
     beta = np.ones((n, 1))
     logU = np.log(perplexity)
@@ -88,8 +97,8 @@ def x2p(X=np.array([]), tol=1e-5, perplexity=30.0):
     return P
 
 
-def tsne(X=np.array([]), no_dims=2, perplexity=30.0, theta = 0, learning_rate=200.0,
-        max_iter = 1000, num_threads = 0):
+def run(X=np.array([]), no_dims=2, perplexity=30.0, theta = 0, learning_rate=200.0,
+        max_iter = 1000, dist_measure = 'euclidean', num_threads = 0):
     """
         Runs t-SNE on the dataset in the NxD array X to reduce its
         dimensionality to no_dims dimensions. The syntaxis of the function is
@@ -116,7 +125,7 @@ def tsne(X=np.array([]), no_dims=2, perplexity=30.0, theta = 0, learning_rate=20
     gains = np.ones((n, no_dims))
 
     # Compute P-values
-    P = x2p(X, 1e-5, perplexity)
+    P = x2p(X, 1e-5, perplexity, dist_measure)
     P = P + np.transpose(P)
     P = P / np.sum(P)
     P = P * 4. # early exaggeration
