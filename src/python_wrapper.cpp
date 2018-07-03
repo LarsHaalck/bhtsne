@@ -3,9 +3,9 @@
 #include <numpy/arrayobject.h>
 
 #include <iostream>
+#include <memory>
 #include <utility>
 #include <vector>
-#include <memory>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -36,32 +36,31 @@ std::vector<npy_intp> get_dims(PyArrayObject* arr)
     return dims;
 }
 
-std::shared_ptr<std::vector<double>> np_to_std_vec(bp::object obj,
-        std::vector<npy_intp>& dims)
+std::shared_ptr<std::vector<double>> np_to_std_vec(
+    bp::object obj, std::vector<npy_intp>& dims)
 {
     auto arr_obj = reinterpret_cast<PyArrayObject*>(obj.ptr());
     check_array(arr_obj);
     dims = get_dims(arr_obj);
     auto arr_value_ptr = static_cast<double*>(PyArray_DATA(arr_obj));
-    return std::make_shared<std::vector<double>>(arr_value_ptr,
-            arr_value_ptr + dims[0] * dims[1]);
+    return std::make_shared<std::vector<double>>(
+        arr_value_ptr, arr_value_ptr + dims[0] * dims[1]);
 }
 
 void write_results(PyObject* obj, std::shared_ptr<std::vector<double>> res,
-        const std::vector<npy_intp>& dims)
+    const std::vector<npy_intp>& dims)
 {
     auto arr_obj = reinterpret_cast<PyArrayObject*>(obj);
     check_array(arr_obj);
     auto arr_value_ptr = static_cast<double*>(PyArray_DATA(arr_obj));
 
-    for(int i = 0; i < static_cast<int>(res->size()); i++)
+    for (int i = 0; i < static_cast<int>(res->size()); i++)
         *(arr_value_ptr++) = (*res)[i];
 }
 
-
 PyObject* tsneRun(bp::object obj, int no_dims, double perplexity, double theta,
-        double learning_rate, int max_iter, int stop_lying_iter, int mom_switch_iter,
-        int num_threads)
+    double learning_rate, int max_iter, int stop_lying_iter, int mom_switch_iter,
+    int num_threads)
 {
     if (num_threads > 0)
         omp_set_num_threads(num_threads);
@@ -73,7 +72,7 @@ PyObject* tsneRun(bp::object obj, int no_dims, double perplexity, double theta,
 
     auto Y = std::make_shared<std::vector<double>>(dims[0] * no_dims);
     tsne::TSNE::run(vec, dims[0], dims[1], Y, no_dims, perplexity, theta, learning_rate,
-            false, max_iter, stop_lying_iter, mom_switch_iter);
+        false, max_iter, stop_lying_iter, mom_switch_iter);
 
     dims[1] = no_dims;
     PyObject* out_array = PyArray_SimpleNew(2, dims.data(), NPY_FLOAT64);
@@ -84,11 +83,11 @@ PyObject* tsneRun(bp::object obj, int no_dims, double perplexity, double theta,
 BOOST_PYTHON_MODULE(tsne_cpp)
 {
     using namespace boost::python;
-    def("tsne", tsneRun, bp::default_call_policies(), (bp::arg("obj"),
-                bp::arg("no_dims")=2, bp::arg("perplexity")=30.0, bp::arg("theta")=0.5,
-                bp::arg("learning_rate")=200.0, bp::arg("max_iter")=1000,
-                bp::arg("stop_lying_iter")=250, bp::arg("mom_switch_iter")=250,
-                bp::arg("num_threads")=0));
+    def("tsne", tsneRun, bp::default_call_policies(),
+        (bp::arg("obj"), bp::arg("no_dims") = 2, bp::arg("perplexity") = 30.0,
+            bp::arg("theta") = 0.5, bp::arg("learning_rate") = 200.0,
+            bp::arg("max_iter") = 1000, bp::arg("stop_lying_iter") = 250,
+            bp::arg("mom_switch_iter") = 250, bp::arg("num_threads") = 0));
 
     import_array(); // needed for PyArray_SimpleNew
 }

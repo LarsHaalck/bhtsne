@@ -31,9 +31,9 @@
  */
 
 #include "cell.h"
+#include <algorithm>
 #include <cmath>
 #include <numeric>
-#include <algorithm>
 
 namespace tsne
 {
@@ -45,9 +45,8 @@ Cell::Cell(int inp_dimension)
 {
 }
 
-
-Cell::Cell(int inp_dimension, std::vector<double>&& inp_corner,
-    std::vector<double>&& inp_width)
+Cell::Cell(
+    int inp_dimension, std::vector<double>&& inp_corner, std::vector<double>&& inp_width)
     : m_dimension(inp_dimension)
     , m_corner(std::move(inp_corner))
     , m_width(std::move(inp_width))

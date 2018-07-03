@@ -34,30 +34,30 @@
 #include "sptree.h"
 #include "vptree.h"
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <functional>
-#include <random>
 #include <iostream>
 #include <limits>
-#include <cmath>
-#include <algorithm>
 #include <numeric>
+#include <random>
 
 namespace tsne
 {
 // Perform t-SNE
-void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
-    int no_dims, double perplexity, double theta, double learning_rate,
-    bool skip_random_init, int max_iter, int stop_lying_iter, int mom_switch_iter)
+void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y, int no_dims,
+    double perplexity, double theta, double learning_rate, bool skip_random_init,
+    int max_iter, int stop_lying_iter, int mom_switch_iter, Distance dist)
 {
     // Determine whether we are using an exact algorithm
     if (N - 1 < 3 * perplexity)
     {
-        std::cout <<"Perplexity too large for the number of data points!" << std::endl;
+        std::cout << "Perplexity too large for the number of data points!" << std::endl;
         std::exit(1);
     }
     std::cout << "Using no_dims = " << no_dims << ", perplexity = " << perplexity
-        << ", and theta = " << theta << std::endl;
+              << ", and theta = " << theta << std::endl;
 
     // time execution time
     std::chrono::time_point<std::chrono::system_clock> start_time, end_time;
@@ -81,7 +81,7 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
 
     double max_X = *std::max_element(std::cbegin(X), std::cend(X), detail::abs_compare);
     max_X = std::abs(max_X);
-    for(int i = 0; i < N * D; i++)
+    for (int i = 0; i < N * D; i++)
         X[i] /= max_X;
 
     // Compute input similarities for approximate t-SNE
@@ -91,12 +91,13 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
     // Compute asymmetric pairwise input similarities
 
     computeGaussianPerplexity(
-        X, N, D, row_P, col_P, val_P, perplexity, static_cast<int>(3 * perplexity));
+        X, N, D, row_P, col_P, val_P, perplexity, static_cast<int>(3 * perplexity), dist);
 
     // Symmetrize input similarities
     symmetrizeMatrix(row_P, col_P, val_P, N);
 
-    double sum_P = std::accumulate(std::cbegin(val_P), std::cbegin(val_P) + row_P[N], 0.0);
+    double sum_P
+        = std::accumulate(std::cbegin(val_P), std::cbegin(val_P) + row_P[N], 0.0);
     for (int i = 0; i < row_P[N]; i++)
         val_P[i] /= sum_P;
 
@@ -110,26 +111,28 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
     if (skip_random_init != true)
         fillRandom(Y);
 
-    double elapsed_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() / 1000.0;
+    double elapsed_seconds
+        = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time)
+              .count()
+        / 1000.0;
     double sparsity = static_cast<double>(row_P[N]) / (N * N);
     std::cout << "Input similarities computed in " << elapsed_seconds
-        << " seconds (sparsity = " << sparsity << ")!. Learning embedding..."
-        << std::endl;
+              << " seconds (sparsity = " << sparsity << ")!. Learning embedding..."
+              << std::endl;
     start_time = std::chrono::system_clock::now();
 
     // Perform main training loop
     for (int iter = 0; iter < max_iter; iter++)
     {
         // Compute (approximate) gradient
-
         computeGradient(row_P, col_P, val_P, Y, N, no_dims, dY, theta);
 
         // Update gains
         // Perform gradient update (with momentum and gains)
         for (int i = 0; i < N * no_dims; i++)
         {
-            gains[i] = (detail::sign(dY[i]) != detail::sign(uY[i]))
-                ? (gains[i] + 0.2) : (gains[i] * 0.8);
+            gains[i] = (detail::sign(dY[i]) != detail::sign(uY[i])) ? (gains[i] + 0.2)
+                                                                    : (gains[i] * 0.8);
 
             if (gains[i] < 0.01)
                 gains[i] = 0.01;
@@ -158,26 +161,31 @@ void TSNE::run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
                 std::cout << "Iteration: " << iter << ", error is " << C << std::endl;
             else
             {
-                elapsed_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() / 1000.0;
+                elapsed_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                      end_time - start_time)
+                                      .count()
+                    / 1000.0;
                 total_time += elapsed_seconds;
                 std::cout << "Iteration: " << iter << ", error is " << C
-                << " (50 iterations in " << elapsed_seconds << " seconds)" << std::endl;
+                          << " (50 iterations in " << elapsed_seconds << " seconds)"
+                          << std::endl;
             }
             start_time = std::chrono::system_clock::now();
         }
     }
     end_time = std::chrono::system_clock::now();
-    elapsed_seconds = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count() / 1000.0;
+    elapsed_seconds
+        = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count()
+        / 1000.0;
     total_time += elapsed_seconds;
 
     std::cout << "Fitting performed in " << total_time << " seconds." << std::endl;
 }
 
 // Compute gradient of the t-SNE cost function (using Barnes-Hut algorithm)
-void TSNE::computeGradient(const std::vector<int>& row_P,
-    const std::vector<int>& col_P, const std::vector<double>& val_P,
-    const std::vector<double>& Y, int N, int D, std::vector<double>& dC,
-    double theta)
+void TSNE::computeGradient(const std::vector<int>& row_P, const std::vector<int>& col_P,
+    const std::vector<double>& val_P, const std::vector<double>& Y, int N, int D,
+    std::vector<double>& dC, double theta)
 {
     // Construct space-partitioning tree on current map
     auto tree = std::make_unique<SPTree>(D, Y, N);
@@ -189,10 +197,10 @@ void TSNE::computeGradient(const std::vector<int>& row_P,
     // was tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f); before
     // data in sptree equals Y here
     auto local_Q = std::vector<double>(N);
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int n = 0; n < N; n++)
     {
-        //computeEdgeForces
+        // computeEdgeForces
         int ind1 = n * D;
         for (int i = row_P[n]; i < row_P[n + 1]; i++)
         {
@@ -227,8 +235,8 @@ void TSNE::computeGradient(const std::vector<int>& row_P,
 
 // Evaluate t-SNE cost function (approximately)
 double TSNE::evaluateError(const std::vector<int>& row_P, const std::vector<int>& col_P,
-    const std::vector<double>& val_P, const std::vector<double>& Y, int N,
-    int D, double theta)
+    const std::vector<double>& val_P, const std::vector<double>& Y, int N, int D,
+    double theta)
 {
     // Get estimate of normalization term
     auto tree = std::make_unique<SPTree>(D, Y, N);
@@ -239,7 +247,7 @@ double TSNE::evaluateError(const std::vector<int>& row_P, const std::vector<int>
 
     // Loop over all edges to compute t-SNE error
     double C = 0.0;
-    #pragma omp parallel for reduction(+:C)
+#pragma omp parallel for reduction(+ : C)
     for (int n = 0; n < N; n++)
     {
         int ind1 = n * D;
@@ -264,7 +272,7 @@ double TSNE::evaluateError(const std::vector<int>& row_P, const std::vector<int>
 // Compute input similarities with a fixed perplexity using ball trees
 void TSNE::computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
     std::vector<int>& row_P, std::vector<int>& col_P, std::vector<double>& val_P,
-    double perplexity, int K)
+    double perplexity, int K, Distance dist)
 {
     if (perplexity > K)
         std::cout << "Perplexity should be lower than K!" << std::endl;
@@ -279,7 +287,12 @@ void TSNE::computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
         row_P[n + 1] = row_P[n] + K;
 
     // Build ball tree on data set
-    auto tree = std::make_unique<VpTree>();
+    auto tree = std::unique_ptr<VpTreeBase>(nullptr);
+    if (dist == Distance::Euclidean)
+        tree = std::make_unique<VpTree<detail::eucl_dist>>();
+    else
+        tree = std::make_unique<VpTree<detail::jaccard_dist>>();
+
     auto obj_X = std::vector<DataPoint>();
     for (int n = 0; n < N; n++)
         obj_X.push_back(DataPoint(D, n, std::cbegin(X) + n * D));
@@ -287,7 +300,7 @@ void TSNE::computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
 
     // Loop over all points to find nearest neighbors
     std::cout << "Building tree..." << std::endl;
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int n = 0; n < N; n++)
     {
         // Find nearest neighbors
@@ -364,8 +377,8 @@ void TSNE::computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
 }
 
 // Symmetrizes a sparse matrix
-void TSNE::symmetrizeMatrix(std::vector<int>& row_P, std::vector<int>& col_P,
-    std::vector<double>& val_P, int N)
+void TSNE::symmetrizeMatrix(
+    std::vector<int>& row_P, std::vector<int>& col_P, std::vector<double>& val_P, int N)
 {
     // Count number of elements and row counts of symmetric matrix
     auto row_counts = std::vector<int>(N);
@@ -487,7 +500,8 @@ void TSNE::zeroMean(std::vector<double>& X, int N, int D)
 // Generates a Gaussian random number
 void TSNE::fillRandom(std::vector<double>& Y, double mean, double dev)
 {
-    unsigned int seed = static_cast<unsigned int>(std::chrono::system_clock::now().time_since_epoch().count());
+    unsigned int seed = static_cast<unsigned int>(
+        std::chrono::system_clock::now().time_since_epoch().count());
     std::default_random_engine gen(seed);
     std::normal_distribution<double> dist(mean, dev);
 

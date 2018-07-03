@@ -70,8 +70,7 @@ private:
 
 public:
     SPTree(int D, const std::vector<double>& inp_data, int N);
-    SPTree(int D, const std::vector<double>& inp_data,
-        std::vector<double>&& inp_corner,
+    SPTree(int D, const std::vector<double>& inp_data, std::vector<double>&& inp_corner,
         std::vector<double>&& inp_width);
     /*SPTree(int D, const std::vector<double>& inp_data, int N,
         std::vector<double>&& inp_corner,
@@ -81,6 +80,7 @@ public:
     void subdivide();
     void computeNonEdgeForces(int point_index, double theta, std::vector<double>& neg_f,
         int neg_offset, double& sum_Q);
+
 private:
     SPTree(int D, const std::vector<double>& inp_data);
     void fill(int N);

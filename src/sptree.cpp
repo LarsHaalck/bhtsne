@@ -54,7 +54,6 @@ SPTree::SPTree(int D, const std::vector<double>& inp_data)
     for (int d = 1; d < D; d++)
         no_children *= 2;
     children = std::vector<std::unique_ptr<SPTree>>(no_children);
-
 }
 // Default constructor for SPTree -- build tree, too!
 SPTree::SPTree(int D, const std::vector<double>& inp_data, int N)
@@ -70,8 +69,10 @@ SPTree::SPTree(int D, const std::vector<double>& inp_data, int N)
         for (int d = 0; d < D; d++)
         {
             mean_Y[d] += inp_data[n * D + d];
-            if (inp_data[nD + d] < min_Y[d]) min_Y[d] = inp_data[nD + d];
-            if (inp_data[nD + d] > max_Y[d]) max_Y[d] = inp_data[nD + d];
+            if (inp_data[nD + d] < min_Y[d])
+                min_Y[d] = inp_data[nD + d];
+            if (inp_data[nD + d] > max_Y[d])
+                max_Y[d] = inp_data[nD + d];
         }
         nD += D;
     }
@@ -100,12 +101,11 @@ SPTree::SPTree(int D, const std::vector<double>& inp_data, int N)
 
 // Constructor for SPTree with particular size (do not fill the tree)
 SPTree::SPTree(int D, const std::vector<double>& inp_data,
-    std::vector<double>&& inp_corner,
-    std::vector<double>&& inp_width)
+    std::vector<double>&& inp_corner, std::vector<double>&& inp_width)
     : SPTree(D, inp_data)
 {
-    boundary = std::make_unique<Cell>(dimension, std::move(inp_corner),
-        std::move(inp_width));
+    boundary
+        = std::make_unique<Cell>(dimension, std::move(inp_corner), std::move(inp_width));
 }
 
 // Insert a point into the SPTree
@@ -185,13 +185,15 @@ void SPTree::subdivide()
         {
             new_width.push_back(0.5 * boundary->getWidth(d));
             if ((i / div) % 2 == 1)
-                new_corner.push_back(boundary->getCorner(d) - 0.5 * boundary->getWidth(d));
+                new_corner.push_back(
+                    boundary->getCorner(d) - 0.5 * boundary->getWidth(d));
             else
-                new_corner.push_back(boundary->getCorner(d) + 0.5 * boundary->getWidth(d));
+                new_corner.push_back(
+                    boundary->getCorner(d) + 0.5 * boundary->getWidth(d));
             div *= 2;
         }
-        children[i] = std::make_unique<SPTree>(dimension, data, std::move(new_corner),
-            std::move(new_width));
+        children[i] = std::make_unique<SPTree>(
+            dimension, data, std::move(new_corner), std::move(new_width));
     }
 
     // Move existing points to correct children
@@ -218,9 +220,8 @@ void SPTree::fill(int N)
 }
 
 // Compute non-edge forces using Barnes-Hut algorithm
-void SPTree::computeNonEdgeForces(
-    int point_index, double theta, std::vector<double>& neg_f, int neg_offset,
-    double& sum_Q)
+void SPTree::computeNonEdgeForces(int point_index, double theta,
+    std::vector<double>& neg_f, int neg_offset, double& sum_Q)
 {
     // Make sure that we spend no time on empty nodes or self-interactions
     if (cum_size == 0 || (is_leaf && size == 1 && index[0] == point_index))
@@ -254,7 +255,8 @@ void SPTree::computeNonEdgeForces(
     {
         // Recursively apply Barnes-Hut to children
         for (int i = 0; i < no_children; i++)
-            children[i]->computeNonEdgeForces(point_index, theta, neg_f, neg_offset, sum_Q);
+            children[i]->computeNonEdgeForces(
+                point_index, theta, neg_f, neg_offset, sum_Q);
     }
 }
 }

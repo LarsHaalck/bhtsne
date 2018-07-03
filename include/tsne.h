@@ -33,26 +33,41 @@
 #ifndef TSNE_TSNE_H
 #define TSNE_TSNE_H
 
-#include <vector>
 #include <cstdlib>
 #include <memory>
+#include <vector>
 
 namespace tsne
 {
 namespace detail
 {
-static inline double sign(double x) { return (x == 0.0 ? 0.0 : (x < 0.0 ? -1.0 : 1.0)); }
-static inline bool abs_compare(double a, double b) { return (std::abs(a) < std::abs(b)); }
+    static inline double sign(double x)
+    {
+        return (x == 0.0 ? 0.0 : (x < 0.0 ? -1.0 : 1.0));
+    }
+    static inline bool abs_compare(double a, double b)
+    {
+        return (std::abs(a) < std::abs(b));
+    }
 }
+
+enum class Distance
+{
+    Euclidean,
+    Jaccard
+};
+
+class DataPoint;
 
 class TSNE
 {
     typedef std::vector<double>::const_iterator itType;
+
 public:
     static void run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
         int no_dims, double perplexity, double theta, double learning_rate = 200.0,
         bool skip_random_init = false, int max_iter = 1000, int stop_lying_iter = 250,
-        int mom_switch_iter = 250);
+        int mom_switch_iter = 250, Distance dist = Distance::Euclidean);
     static void symmetrizeMatrix(std::vector<int>& row_P, std::vector<int>& col_P,
         std::vector<double>& val_P, int N);
 
@@ -61,17 +76,15 @@ private:
         const std::vector<int>& inp_col_P, const std::vector<double>& inp_val_P,
         const std::vector<double>& Y, int N, int D, std::vector<double>& dC,
         double theta);
-    static double evaluateError(const std::vector<int>& row_P, const std::vector<int>& col_P,
-        const std::vector<double>& val_P, const std::vector<double>& Y, int N,
-        int D, double theta);
-    static void computeGaussianPerplexity(const std::vector<double>& X, int N,
-        int D, std::vector<int>& row_P, std::vector<int>& col_P,
-        std::vector<double>& val_P, double perplexity, int K);
+    static double evaluateError(const std::vector<int>& row_P,
+        const std::vector<int>& col_P, const std::vector<double>& val_P,
+        const std::vector<double>& Y, int N, int D, double theta);
+    static void computeGaussianPerplexity(const std::vector<double>& X, int N, int D,
+        std::vector<int>& row_P, std::vector<int>& col_P, std::vector<double>& val_P,
+        double perplexity, int K, Distance dist);
     static void zeroMean(std::vector<double>& X, int N, int D);
-    static void fillRandom(std::vector<double>& Y, double mean = 0.0,
-        double dev = 0.0001);
-
-
+    static void fillRandom(
+        std::vector<double>& Y, double mean = 0.0, double dev = 0.0001);
 };
 }
 

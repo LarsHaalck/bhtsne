@@ -43,6 +43,7 @@ namespace tsne
 class DataPoint
 {
     typedef std::vector<double>::const_iterator itType;
+
 private:
     int m_D;
     int m_ind;
@@ -54,7 +55,7 @@ public:
     int index() const { return m_ind; }
     int getDim() const { return m_D; }
     double x(int d) const { return *(m_it + d); }
-    double getIt() const { return m_it; }
+    itType getIt() const { return m_it; }
 };
 }
 

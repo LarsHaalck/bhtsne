@@ -37,17 +37,48 @@
 
 namespace tsne
 {
+namespace detail
+{
+    double eucl_dist(const DataPoint& t1, const DataPoint& t2)
+    {
+        double dd = 0.0;
+        for (int d = 0; d < t1.getDim(); d++)
+        {
+            double diff = t1.x(d) - t2.x(d);
+            dd += diff * diff;
+        }
+        return std::sqrt(dd);
+    }
+
+    double jaccard_dist(const DataPoint& t1, const DataPoint& t2)
+    {
+        auto min = std::vector<double>(t1.getDim());
+        auto max = std::vector<double>(t1.getDim());
+
+        std::transform(t1.getIt(), t1.getIt() + t1.getDim(), t2.getIt(), std::begin(min),
+            [](double a, double b) -> double { return std::min(a, b); });
+        std::transform(t1.getIt(), t1.getIt() + t1.getDim(), t2.getIt(), std::begin(max),
+            [](double a, double b) -> double { return std::max(a, b); });
+
+        double minSum = std::accumulate(std::begin(min), std::end(min), 0.0);
+        double maxSum = std::accumulate(std::begin(max), std::end(max), 0.0);
+
+        return 1 - (minSum / maxSum);
+    }
+}
 
 // Function to create a new VpTree from data
-void VpTree::create(const std::vector<DataPoint>& items)
+template <func dist_func>
+void VpTree<dist_func>::create(const std::vector<DataPoint>& items)
 {
     m_items = items; // make copy, because this object modifies by swapping in items
     m_root = buildFromPoints(0, static_cast<int>(items.size()));
 }
 
 // Function that uses the tree to find the k nearest neighbors of target
-void VpTree::search(const DataPoint& target, int k, std::vector<DataPoint>& results,
-    std::vector<double>& distances)
+template <func dist_func>
+void VpTree<dist_func>::search(const DataPoint& target, int k,
+    std::vector<DataPoint>& results, std::vector<double>& distances)
 {
 
     // Use a priority queue to store intermediate results on
@@ -75,7 +106,9 @@ void VpTree::search(const DataPoint& target, int k, std::vector<DataPoint>& resu
 }
 
 // Function that (recursively) fills the tree
-std::shared_ptr<VpTree::Node> VpTree::buildFromPoints(int lower, int upper)
+template <func dist_func>
+std::shared_ptr<typename VpTree<dist_func>::Node> VpTree<dist_func>::buildFromPoints(
+    int lower, int upper)
 {
     if (upper == lower) // indicates that we're done here!
         return nullptr;
@@ -96,7 +129,7 @@ std::shared_ptr<VpTree::Node> VpTree::buildFromPoints(int lower, int upper)
             m_items.begin() + upper, DistanceComparator(m_items[lower]));
 
         // Threshold of the new node will be the distance to the median
-        node->threshold = eucl_dist(m_items[lower], m_items[median]);
+        node->threshold = dist_func(m_items[lower], m_items[median]);
 
         // Recursively build tree
         node->index = lower;
@@ -109,14 +142,15 @@ std::shared_ptr<VpTree::Node> VpTree::buildFromPoints(int lower, int upper)
 }
 
 // Helper function that searches the tree
-void VpTree::search(std::shared_ptr<Node> node, const DataPoint& target, int k,
+template <func dist_func>
+void VpTree<dist_func>::search(std::shared_ptr<Node> node, const DataPoint& target, int k,
     std::priority_queue<HeapItem>& heap, double& tau)
 {
     if (node == nullptr)
         return; // indicates that we're done here
 
     // Compute distance between target and current node
-    double dist = eucl_dist(m_items[node->index], target);
+    double dist = dist_func(m_items[node->index], target);
 
     // If current node within radius tau
     if (dist < tau)
@@ -162,4 +196,7 @@ void VpTree::search(std::shared_ptr<Node> node, const DataPoint& target, int k,
             search(node->left, target, k, heap, tau);
     }
 }
+
+template class VpTree<detail::eucl_dist>;
+template class VpTree<detail::jaccard_dist>;
 }

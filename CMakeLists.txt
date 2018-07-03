@@ -18,8 +18,8 @@ set(SOURCES
     ${CMAKE_SOURCE_DIR}/src/cell.cpp
     ${CMAKE_SOURCE_DIR}/src/datapoint.cpp
     ${CMAKE_SOURCE_DIR}/src/sptree.cpp
-    ${CMAKE_SOURCE_DIR}/src/tsne.cpp
     ${CMAKE_SOURCE_DIR}/src/vptree.cpp
+    ${CMAKE_SOURCE_DIR}/src/tsne.cpp
 )
 set(PYTHON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/python_wrapper.cpp
