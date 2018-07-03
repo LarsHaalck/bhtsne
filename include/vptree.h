@@ -116,7 +116,33 @@ private:
     // Helper function that searches the tree
     void search(std::shared_ptr<Node> node, const DataPoint& target, int k,
         std::priority_queue<HeapItem>& heap, double& tau);
-    static double eucl_dist(const DataPoint& t1, const DataPoint& t2);
+
+    static double eucl_dist(const DataPoint& t1, const DataPoint& t2)
+    {
+        double dd = 0.0;
+        for (int d = 0; d < t1.getDim(); d++)
+        {
+            double diff = t1.x(d) - t2.x(d);
+            dd += diff * diff;
+        }
+        return std::sqrt(dd);
+    }
+
+    static double jaccard_dist(const DataPoint& t1, const DataPoint& t2)
+    {
+        auto min = std::vector<double>(t1.getDim());
+        auto max = std::vector<double>(t1.getDim());
+
+        std::transform(t1.getIt(), t1.getIt() + t1.getDim(), t2.getIt(), std::begin(min),
+            [](double a, double b) -> double { return std::min(a, b); };
+        std::transform(t1.getIt(), t1.getIt() + t1.getDim(), t2.getIt(), std::begin(max),
+            [](double a, double b) -> double { return std::max(a, b); };
+
+        double minSum = std::accumulate(std::begin(min), std::end(min), 0.0);
+        double maxSum = std::accumulate(std::begin(max), std::end(max), 0.0);
+
+        return 1 - (minSum / maxSum);
+    }
 };
 }
 

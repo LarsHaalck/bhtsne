@@ -46,16 +46,15 @@ class DataPoint
 private:
     int m_D;
     int m_ind;
-    std::vector<double>::const_iterator m_it;
+    itType m_it;
 
 public:
-    DataPoint();
-    DataPoint(int D, int ind, itType itX);
+    DataPoint(int D, int ind, itType it);
 
     int index() const { return m_ind; }
     int getDim() const { return m_D; }
     double x(int d) const { return *(m_it + d); }
-    itType getIt() const { return m_it; }
+    double getIt() const { return m_it; }
 };
 }
 

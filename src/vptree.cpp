@@ -42,7 +42,7 @@ namespace tsne
 void VpTree::create(const std::vector<DataPoint>& items)
 {
     m_items = items; // make copy, because this object modifies by swapping in items
-    m_root = buildFromPoints(0, items.size());
+    m_root = buildFromPoints(0, static_cast<int>(items.size()));
 }
 
 // Function that uses the tree to find the k nearest neighbors of target
@@ -161,19 +161,5 @@ void VpTree::search(std::shared_ptr<Node> node, const DataPoint& target, int k,
         if (dist - tau <= node->threshold)
             search(node->left, target, k, heap, tau);
     }
-}
-
-double VpTree::eucl_dist(const DataPoint& t1, const DataPoint& t2)
-{
-    double dd = 0.0;
-    auto it1 = t1.getIt();
-    auto it2 = t2.getIt();
-    double diff;
-    for (int d = 0; d < t1.getDim(); d++)
-    {
-        diff = *(it1 + d) - *(it2 + d);
-        dd += diff * diff;
-    }
-    return std::sqrt(dd);
 }
 }

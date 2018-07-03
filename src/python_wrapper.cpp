@@ -75,14 +75,10 @@ PyObject* tsneRun(bp::object obj, int no_dims, double perplexity, double theta,
     tsne::TSNE::run(vec, dims[0], dims[1], Y, no_dims, perplexity, theta, learning_rate,
             false, max_iter, stop_lying_iter, mom_switch_iter);
 
+    dims[1] = no_dims;
     PyObject* out_array = PyArray_SimpleNew(2, dims.data(), NPY_FLOAT64);
     write_results(out_array, Y, dims);
     return out_array;
-}
-
-void bla(bp::object obj)
-{
-    std::cout << "test" << std::endl;
 }
 
 BOOST_PYTHON_MODULE(tsne_cpp)
@@ -93,9 +89,6 @@ BOOST_PYTHON_MODULE(tsne_cpp)
                 bp::arg("learning_rate")=200.0, bp::arg("max_iter")=1000,
                 bp::arg("stop_lying_iter")=250, bp::arg("mom_switch_iter")=250,
                 bp::arg("num_threads")=0));
-    def("test", bla);
 
     import_array(); // needed for PyArray_SimpleNew
 }
-
-

@@ -49,26 +49,26 @@ class TSNE
 {
     typedef std::vector<double>::const_iterator itType;
 public:
-    static void run(std::shared_ptr<std::vector<double>> X, int N, int D,
-        std::shared_ptr<std::vector<double>> Y, int no_dims, double perplexity,
-        double theta, double learning_rate = 200.0, bool skip_random_init = false,
-        int max_iter = 1000, int stop_lying_iter = 250, int mom_switch_iter = 250);
+    static void run(std::vector<double>& X, int N, int D, std::vector<double>& Y,
+        int no_dims, double perplexity, double theta, double learning_rate = 200.0,
+        bool skip_random_init = false, int max_iter = 1000, int stop_lying_iter = 250,
+        int mom_switch_iter = 250);
     static void symmetrizeMatrix(std::vector<int>& row_P, std::vector<int>& col_P,
         std::vector<double>& val_P, int N);
 
 private:
     static void computeGradient(const std::vector<int>& inp_row_P,
         const std::vector<int>& inp_col_P, const std::vector<double>& inp_val_P,
-        std::shared_ptr<std::vector<double>> Y, int N, int D, std::vector<double>& dC,
+        const std::vector<double>& Y, int N, int D, std::vector<double>& dC,
         double theta);
     static double evaluateError(const std::vector<int>& row_P, const std::vector<int>& col_P,
-        const std::vector<double>& val_P, std::shared_ptr<std::vector<double>> Y, int N,
+        const std::vector<double>& val_P, const std::vector<double>& Y, int N,
         int D, double theta);
-    static void computeGaussianPerplexity(std::shared_ptr<std::vector<double>> X, int N,
+    static void computeGaussianPerplexity(const std::vector<double>& X, int N,
         int D, std::vector<int>& row_P, std::vector<int>& col_P,
         std::vector<double>& val_P, double perplexity, int K);
-    static void zeroMean(std::shared_ptr<std::vector<double>> X, int N, int D);
-    static void fillRandom(std::shared_ptr<std::vector<double>> Y, double mean = 0.0,
+    static void zeroMean(std::vector<double>& X, int N, int D);
+    static void fillRandom(std::vector<double>& Y, double mean = 0.0,
         double dev = 0.0001);
 
 

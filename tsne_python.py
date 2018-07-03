@@ -89,7 +89,7 @@ def x2p(X=np.array([]), tol=1e-5, perplexity=30.0):
 
 
 def tsne(X=np.array([]), no_dims=2, perplexity=30.0, theta = 0, learning_rate=200.0,
-        max_iter = 1000, numThreads = 0):
+        max_iter = 1000, num_threads = 0):
     """
         Runs t-SNE on the dataset in the NxD array X to reduce its
         dimensionality to no_dims dimensions. The syntaxis of the function is
@@ -108,7 +108,7 @@ def tsne(X=np.array([]), no_dims=2, perplexity=30.0, theta = 0, learning_rate=20
     (n, d) = X.shape
     initial_momentum = 0.5
     final_momentum = 0.8
-    eta = learing_rate
+    eta = learning_rate
     min_gain = 0.01
     Y = np.random.randn(n, no_dims)
     dY = np.zeros((n, no_dims))
@@ -160,4 +160,3 @@ def tsne(X=np.array([]), no_dims=2, perplexity=30.0, theta = 0, learning_rate=20
 
     # Return solution
     return Y
-

@@ -37,16 +37,10 @@
 
 namespace tsne
 {
-DataPoint::DataPoint()
-    : m_D(1)
-    , m_ind(-1)
-    , m_it()
-{
-}
-DataPoint::DataPoint(int D, int ind, itType itX)
+DataPoint::DataPoint(int D, int ind, itType it)
     : m_D(D)
     , m_ind(ind)
-    , m_it(itX)
+    , m_it(it)
 {
 }
 }
