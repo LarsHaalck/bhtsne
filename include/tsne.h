@@ -33,7 +33,7 @@
 #ifndef TSNE_TSNE_H
 #define TSNE_TSNE_H
 
-#include <cstdlib>
+#include <cmath>
 #include <memory>
 #include <vector>
 
