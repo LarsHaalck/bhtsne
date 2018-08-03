@@ -16,6 +16,7 @@ import numpy as np
 import pylab
 import scipy.spatial.distance as sdist
 
+
 def Hbeta(D=np.array([]), beta=1.0):
     """
         Compute the perplexity and the P-row for a specific value of the
@@ -28,6 +29,7 @@ def Hbeta(D=np.array([]), beta=1.0):
     H = np.log(sumP) + beta * np.sum(D * P) / sumP
     P = P / sumP
     return H, P
+
 
 def x2p(X=np.array([]), tol=1e-5, perplexity=30.0, dist_measure='euclidean'):
     """
@@ -42,10 +44,20 @@ def x2p(X=np.array([]), tol=1e-5, perplexity=30.0, dist_measure='euclidean'):
     if dist_measure == 'euclidean':
         sum_X = np.sum(np.square(X), 1)
         D = np.add(np.add(-2 * np.dot(X, X.T), sum_X).T, sum_X)
-    elif dist_measure == 'jaccard': # jaccard
+    elif dist_measure == 'jaccard':  # jaccard
         X = np.abs(X)
-        D = sdist.squareform(sdist.pdist(X, lambda u, v: np.sum(np.minimum(u, v))
-            / np.sum(np.maximum(u, v))))
+        D = sdist.squareform(
+            sdist.pdist(
+                X,
+                lambda u,
+                v: np.sum(
+                    np.minimum(
+                        u,
+                        v)) /
+                np.sum(
+                    np.maximum(
+                        u,
+                        v))))
     else:
         raise RuntimeError('unkown distance measure in tsne python module')
     P = np.zeros((n, n))
@@ -62,7 +74,7 @@ def x2p(X=np.array([]), tol=1e-5, perplexity=30.0, dist_measure='euclidean'):
         # Compute the Gaussian kernel and entropy for the current precision
         betamin = -np.inf
         betamax = np.inf
-        Di = D[i, np.concatenate((np.r_[0:i], np.r_[i+1:n]))]
+        Di = D[i, np.concatenate((np.r_[0:i], np.r_[i + 1:n]))]
         (H, thisP) = Hbeta(Di, beta[i])
 
         # Evaluate whether the perplexity is within tolerance
@@ -90,15 +102,23 @@ def x2p(X=np.array([]), tol=1e-5, perplexity=30.0, dist_measure='euclidean'):
             tries += 1
 
         # Set the final row of P
-        P[i, np.concatenate((np.r_[0:i], np.r_[i+1:n]))] = thisP
+        P[i, np.concatenate((np.r_[0:i], np.r_[i + 1:n]))] = thisP
 
     # Return final P-matrix
     print("Mean value of sigma: %f" % np.mean(np.sqrt(1 / beta)))
     return P
 
 
-def run(X=np.array([]), no_dims=2, perplexity=30.0, theta = 0, learning_rate=200.0,
-        max_iter = 1000, dist_measure = 'euclidean', num_threads = 0):
+def run(
+        X=np.array(
+            []),
+    no_dims=2,
+    perplexity=30.0,
+    theta=0,
+    learning_rate=200.0,
+    max_iter=1000,
+    dist_measure='euclidean',
+        num_threads=0):
     """
         Runs t-SNE on the dataset in the NxD array X to reduce its
         dimensionality to no_dims dimensions. The syntaxis of the function is
@@ -128,7 +148,7 @@ def run(X=np.array([]), no_dims=2, perplexity=30.0, theta = 0, learning_rate=200
     P = x2p(X, 1e-5, perplexity, dist_measure)
     P = P + np.transpose(P)
     P = P / np.sum(P)
-    P = P * 4. # early exaggeration
+    P = P * 4.  # early exaggeration
     P = np.maximum(P, 1e-12)
 
     # Run iterations
@@ -144,7 +164,8 @@ def run(X=np.array([]), no_dims=2, perplexity=30.0, theta = 0, learning_rate=200
         # Compute gradient
         PQ = P - Q
         for i in range(n):
-            dY[i, :] = np.sum(np.tile(PQ[:, i] * num[:, i], (no_dims, 1)).T * (Y[i, :] - Y), 0)
+            dY[i, :] = np.sum(np.tile(PQ[:, i] * num[:, i],
+                                      (no_dims, 1)).T * (Y[i, :] - Y), 0)
 
         # Perform the update
         if iter < 20:

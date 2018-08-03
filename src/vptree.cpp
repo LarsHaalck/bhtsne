@@ -67,6 +67,14 @@ namespace detail
     }
 }
 
+template <func dist_func>
+VpTree<dist_func>::VpTree()
+{
+    unsigned int seed = static_cast<unsigned int>(
+        std::chrono::system_clock::now().time_since_epoch().count());
+    m_gen = std::default_random_engine(seed);
+}
+
 // Function to create a new VpTree from data
 template <func dist_func>
 void VpTree<dist_func>::create(const std::vector<DataPoint>& items)
@@ -120,7 +128,8 @@ std::shared_ptr<typename VpTree<dist_func>::Node> VpTree<dist_func>::buildFromPo
     if (upper - lower > 1) // if we did not arrive at leaf yet
     {
         // Choose an arbitrary point and move it to the start
-        int i = (int)((double)rand() / RAND_MAX * (upper - lower - 1)) + lower;
+        std::uniform_int_distribution<> dist(lower, upper - 1);
+        int i = dist(m_gen);
         std::swap(m_items[lower], m_items[i]);
 
         // Partition around the median distance

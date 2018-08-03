@@ -38,14 +38,14 @@
 
 #include <algorithm>
 #include <cmath>
+#include <chrono>
 #include <limits>
 #include <memory>
 #include <numeric>
+#include <random>
 #include <queue>
 
-// TODO replace cstdlib rand with uniform stuff
 #include "datapoint.h"
-#include <cstdlib>
 
 namespace tsne
 {
@@ -71,6 +71,8 @@ template <func dist_func>
 class VpTree : public VpTreeBase
 {
 public:
+    VpTree();
+
     // Function to create a new VpTree from data
     void create(const std::vector<DataPoint>& items);
 
@@ -79,6 +81,7 @@ public:
         std::vector<double>& distances);
 
 private:
+    std::default_random_engine m_gen;
     std::vector<DataPoint> m_items;
 
     // Single node of a VP tree

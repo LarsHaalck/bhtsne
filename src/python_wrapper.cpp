@@ -1,8 +1,8 @@
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <boost/python.hpp>
-#include <numpy/arrayobject.h>
+#include <boost/python/numpy.hpp>
 
-#include <iostream>
+#include <algorithm>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -18,46 +18,36 @@ int omp_get_max_threads() { return 1; }
 #include "tsne.h"
 
 namespace bp = boost::python;
+namespace np = boost::python::numpy;
 
-void check_array(PyArrayObject* arr)
+void check_array(const np::ndarray& array)
 {
-    if (!(PyArray_FLAGS(arr) & NPY_ARRAY_C_CONTIGUOUS))
+    if (!(array.get_flags() & np::ndarray::C_CONTIGUOUS))
         throw std::runtime_error("Passed array must be contiguous.");
-    if (PyArray_NDIM(arr) != 2)
+    if (array.get_nd() != 2)
         throw std::runtime_error("Passed array must be 2D.");
-    if (PyArray_TYPE(arr) != NPY_FLOAT64)
-        throw std::runtime_error("Passed array must be of type double64.");
+    if (array.get_dtype() != np::dtype::get_builtin<double>())
+        throw std::runtime_error("Passed array must be of type float64 (double).");
 }
 
-std::vector<npy_intp> get_dims(PyArrayObject* arr)
+std::vector<int> get_dims(const np::ndarray& array)
 {
-    std::vector<npy_intp> dims(2);
-    dims[0] = PyArray_DIMS(arr)[0];
-    dims[1] = PyArray_DIMS(arr)[1];
+    std::vector<int> dims(2);
+    dims[0] = array.shape(0);
+    dims[1] = array.shape(1);
     return dims;
 }
 
-std::vector<double> np_to_std_vec(bp::object obj, std::vector<npy_intp>& dims)
+std::vector<double> np_to_std_vec(const np::ndarray& array, std::vector<int>& dims)
 {
-    auto arr_obj = reinterpret_cast<PyArrayObject*>(obj.ptr());
-    check_array(arr_obj);
-    dims = get_dims(arr_obj);
-    auto arr_value_ptr = static_cast<double*>(PyArray_DATA(arr_obj));
+    check_array(array);
+    dims = get_dims(array);
+    auto arr_value_ptr = reinterpret_cast<double*>(array.get_data());
     return std::vector<double>(arr_value_ptr, arr_value_ptr + dims[0] * dims[1]);
 }
 
-void write_results(PyObject* obj, const std::vector<double>& res,
-    const std::vector<npy_intp>& dims)
-{
-    auto arr_obj = reinterpret_cast<PyArrayObject*>(obj);
-    check_array(arr_obj);
-    auto arr_value_ptr = static_cast<double*>(PyArray_DATA(arr_obj));
 
-    for (int i = 0; i < static_cast<int>(res.size()); i++)
-        *(arr_value_ptr++) = res[i];
-}
-
-PyObject* tsneRun(bp::object obj, int no_dims, double perplexity, double theta,
+np::ndarray tsneRun(bp::object obj, int no_dims, double perplexity, double theta,
     double learning_rate, int max_iter, int stop_lying_iter, int mom_switch_iter,
     std::string dist_measure, int num_threads)
 {
@@ -66,8 +56,9 @@ PyObject* tsneRun(bp::object obj, int no_dims, double perplexity, double theta,
     else
         omp_set_num_threads(omp_get_max_threads());
 
-    std::vector<npy_intp> dims;
-    auto vec = np_to_std_vec(obj, dims);
+    auto numpy_array = np::from_object(obj, np::ndarray::C_CONTIGUOUS);
+    std::vector<int> dims;
+    auto vec = np_to_std_vec(numpy_array, dims);
 
     auto Y = std::vector<double>(dims[0] * no_dims);
 
@@ -79,14 +70,20 @@ PyObject* tsneRun(bp::object obj, int no_dims, double perplexity, double theta,
     tsne::TSNE::run(vec, dims[0], dims[1], Y, no_dims, perplexity, theta, learning_rate,
         false, max_iter, stop_lying_iter, mom_switch_iter, dist);
 
-    dims[1] = no_dims;
-    PyObject* out_array = PyArray_SimpleNew(2, dims.data(), NPY_FLOAT64);
-    write_results(out_array, Y, dims);
-    return out_array;
+    // out_array is an ndarray of size dims[0] * no_dims
+    auto shape = bp::make_tuple(dims[0] * no_dims);
+    auto dtype = np::dtype::get_builtin<double>();
+    auto out_array = np::empty(shape, dtype);
+
+    std::copy(std::begin(Y), std::end(Y), reinterpret_cast<double*>(out_array.get_data()));
+    return out_array.reshape(bp::make_tuple(dims[0], no_dims));
 }
 
 BOOST_PYTHON_MODULE(tsne_module)
 {
+    Py_Initialize();
+    np::initialize();
+
     using namespace boost::python;
     def("run", tsneRun, bp::default_call_policies(),
         (bp::arg("obj"), bp::arg("no_dims") = 2, bp::arg("perplexity") = 30.0,
@@ -94,6 +91,4 @@ BOOST_PYTHON_MODULE(tsne_module)
             bp::arg("max_iter") = 1000, bp::arg("stop_lying_iter") = 250,
             bp::arg("mom_switch_iter") = 250, bp::arg("dist_measure") = "euclidean",
             bp::arg("num_threads") = 0));
-
-    import_array(); // needed for PyArray_SimpleNew
 }
